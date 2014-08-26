@@ -51,7 +51,7 @@ function WFEPController(){
     this.annotationDragging = false;
 
     // ポインタの番号
-    this.pointerNumber = 0;
+    this.pointerNumber = 2;
 
     // ポインタの画像のURL（決め打ち）
     this.pointers = {
@@ -1104,6 +1104,14 @@ WFEPController.prototype.toggleFullScreen = function(target){
     }
 };
 
+WFEPController.prototype.setPointerColor = function(pointerIndex){
+    window.wfepcontroller.pointerNumber = pointerIndex;
+    
+    $('#drawButton')
+        .attr('src','img/pointer/'+window.wfepcontroller.pointers[window.wfepcontroller.pointerNumber]);
+
+};
+
 // サムネイルビューア関係
 function ThumbnailController(){
     this.isShown = false;
@@ -1242,7 +1250,6 @@ function DrawCanvas(){
     this.toggleFlag = true;
 
     // モードの画像
-    this.pointerIcon = "img/pointer/red.png";
     this.penIcon = "img/draw/pen.png";
     this.eraserIcon = "img/draw/eraser.png";
 
@@ -1313,7 +1320,12 @@ DrawCanvas.prototype.toggleDrawMenu = function(){
                     opacity: '1.0',
                     boxShadow: '0px 0px 0px #000'
                 },
-                contents: '<img id="pointerMode" class="drawIcon" src="img/pointer/red.png"/><hr>'+
+                contents: '<img class="pointerMode" src="img/pointer/red.png"/ data-pointerindex="2">'+
+                    '<img class="pointerMode" src="img/pointer/black.png"/ data-pointerindex="0">'+
+                    '<img class="pointerMode" src="img/pointer/white.png"/ data-pointerindex="1">'+
+                    '<img class="pointerMode" src="img/pointer/green.png"/ data-pointerindex="3">'+
+                    '<img class="pointerMode" src="img/pointer/blue.png"/ data-pointerindex="4">'+
+                    '<hr id="modeHR">'+
                     '<img id="penMode" class="drawIcon" src="img/draw/pen.png"/><img id="eraserMode" class="drawIcon" src="img/draw/eraser.png"/><br>' +
                     'thickness: <input id="drawThickness" type="number" min="1" max="20" value="'+window.drawcanvas.state.thickness+'"/> color: <input id="drawColor" type="text">',
                 showDuration: "show",
@@ -1339,9 +1351,12 @@ DrawCanvas.prototype.toggleDrawMenu = function(){
                             window.drawcanvas.e_canvas.setStrokeColor($('#drawColor').val());
                         });
 
-                    $('#pointerMode')
+                    $('.pointerMode')
                         .on('click',function(){
                             window.drawcanvas.activeDrawMode("pointer");
+                            var pointerIndex = $(this).attr('data-pointerindex');
+                            
+                            window.wfepcontroller.setPointerColor(pointerIndex);
                         });
                     $('#penMode')
                         .on('click', function(){
@@ -1389,11 +1404,6 @@ DrawCanvas.prototype.activeDrawMode = function(mode){
                 });
             break;
         case "pointer":
-            $('#drawButton')
-                .attr({
-                    'src': window.drawcanvas.pointerIcon
-                });
-
             $('#realtimeCanvas')
                 .css({
                     "z-index":2
@@ -1822,12 +1832,10 @@ ComController.prototype.updateCommentInputWithSelectedSlide = function(slideInde
     
     if(slideIndex==0){
         $('#commentInput')
-            .val(newText)
-            .focus();        
+            .val(newText);        
     }else{
         $('#commentInput')
-            .val('#'+slideIndex+' '+newText)
-            .focus();        
+            .val('#'+slideIndex+' '+newText);        
     }
     
 };
@@ -2119,10 +2127,12 @@ MickrManager.prototype.clientInit = function(){
                 if(msg.replyto==window.wfepcontroller.userID){
                     window.comcontroller.addUserToList(msg,date);
                     
-                    // ポインタの色（メソッド作る）
-                    if(msg.userid==window.wfepcontroller.userID){
-                        window.wfepcontroller.pointerNumber = window.comcontroller.users.length%4;
-                    };               
+                    // ポインタの色（メソッド作る?）
+                    window.wfepcontroller.pointerNumber = window.comcontroller.users.length%4;
+                    // 白色回避
+                    if(window.wfepcontroller.pointerNumber==1){
+                        window.wfepcontroller.pointerNumber++;
+                    };              
                 };                    
                 
                 break;
