@@ -359,6 +359,11 @@ html, body {
     width:10%;
 }
 
+.alertText{
+    color:#E00000;
+    font-size:12pt;
+}
+
 /* マージン用 */
 .top5 { margin-top:5px; }
 .top7 { margin-top:7px; }

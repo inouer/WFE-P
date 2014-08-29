@@ -1678,12 +1678,27 @@ ComController.prototype.addCommentToList = function(msg,timestamp){
 };
 
 ComController.prototype.addUserToList = function(msg,timestamp){
+    // 重複確認
+    var targetID = msg.userid;
+    var duplicateIndex = -1;
+        
     this.users
-        .push({
-            "id":msg.userid,
-            "name":msg.name,
-            "timestamp":timestamp
-        });
+        .some(function(v, i){
+            if (v.id==targetID){
+                duplicateIndex = i;
+            };
+        });   
+        
+    if(duplicateIndex==-1){
+        this.users
+            .push({
+                "id":msg.userid,
+                "name":msg.name,
+                "timestamp":timestamp
+            });        
+    }else{
+        this.users[duplicateIndex].name = msg.name;        
+    };    
 };
 
 ComController.prototype.removeUserFromList = function(msg){    
@@ -1692,6 +1707,22 @@ ComController.prototype.removeUserFromList = function(msg){
         .some(function(v, i){
             if (v.id==targetID) window.comcontroller.users.splice(i,1);
         });
+};
+
+ComController.prototype.usernameIsDuplicated = function(targetName){
+    var duplicateIndex = -1;
+    this.users
+        .some(function(v, i){
+            if (v.name==targetName){
+                duplicateIndex = i;
+            };
+        });    
+        
+    return duplicateIndex;
+};
+
+ComController.prototype.initializeUserList = function(){
+    this.users.length = 0;
 };
 
 ComController.prototype.updateCommentView = function(slideIndex){
@@ -1877,6 +1908,9 @@ function MickrManager(){
     //this.token = "demo";
 
     this.token = "default";
+    
+    // モーダルが表示されているかどうか
+    this.duplicateModalIsOpen = false;
 };
 
 MickrManager.prototype.init = function(){
@@ -1936,6 +1970,55 @@ MickrManager.prototype.init = function(){
             $(this).select();
             return false;    
         });
+    
+    // 以降ユーザ名重複時のインターフェース    
+    $('#duplicateWindow')
+        .on('shown',function(){
+            window.mickrmanager.duplicateModalIsOpen = true;
+            
+            $('#duplicateNameInput')
+                .val(window.mickrmanager.name);
+            $('#duplicateNameInput').focus();
+        })
+        .on('hide',function(){
+            window.mickrmanager.duplicateModalIsOpen = false;
+        });
+        
+    $('#usernameSubmit')
+        .on('click',function(){
+            if($('#duplicateNameInput').val() == ""){
+                $('#tokenMessage').html("Name is requred.");
+                $('#duplicateNameInput').focus();
+                return;
+            }else{
+                window.mickrmanager.name = $('#duplicateNameInput').val();
+            };
+
+            $('#duplicateWindow')
+                .modal('hide');
+            
+            // ユーザリストの初期化
+            window.comcontroller.initializeUserList();
+            
+            var msg = {
+                type: "client_connect",
+                userid: window.wfepcontroller.userID,
+                name: window.mickrmanager.name
+            };
+            window.mickrmanager.sendMickr(msg);
+        });
+        
+    $('#duplicateNameInput')
+        .keypress( function ( e ) {
+            if ( e.which == 13 ) {
+                    $('#usernameSubmit').trigger('click');
+                return false;
+            }
+        } )
+        .focus(function() {
+            $(this).select();
+            return false;    
+        });
         
     // 評価用
     //window.mickrmanager.clientInit();
@@ -1954,7 +2037,7 @@ MickrManager.prototype.clientInit = function(){
     MWClient.onHello = function(res) {
         // Hello が完了した後に実行される
 
-        // 接続中のクライアントの情報を収集
+        // 接続したことを他のクライアントに通知，接続中のクライアントの情報を収集
         var msg = {
             type: "client_connect",
             userid: window.wfepcontroller.userID,
@@ -2108,7 +2191,9 @@ MickrManager.prototype.clientInit = function(){
             
                 break;
             case "client_connect":
-                if(msg.userid!=window.wfepcontroller.userID){
+                // 重複確認
+                var duplicateIndex = window.comcontroller.usernameIsDuplicated(msg.name);
+                if(msg.userid!=window.wfepcontroller.userID && duplicateIndex==-1){
                     window.comcontroller.addUserToList(msg,date);
                     window.comcontroller.settingUserList();
                 };                
@@ -2125,14 +2210,11 @@ MickrManager.prototype.clientInit = function(){
                 break;
             case "client_connect_reply":
                 if(msg.replyto==window.wfepcontroller.userID){
-                    window.comcontroller.addUserToList(msg,date);
-                    
-                    // ポインタの色（メソッド作る?）
-                    window.wfepcontroller.pointerNumber = window.comcontroller.users.length%4;
-                    // 白色回避
-                    if(window.wfepcontroller.pointerNumber==1){
-                        window.wfepcontroller.pointerNumber++;
-                    };              
+                    if(msg.userid != window.wfepcontroller.userID && msg.name == window.mickrmanager.name){
+                        window.mickrmanager.duplicateUsername();
+                    }else{
+                        window.comcontroller.addUserToList(msg,date);                        
+                    };           
                 };                    
                 
                 break;
@@ -2181,6 +2263,22 @@ MickrManager.prototype.sendMickr = function(msg){
     var to = "*";
     var group = this.token;
     MWClient.send(msg, to, group);
+};
+
+// モーダル再表示
+MickrManager.prototype.duplicateUsername = function(){
+    // モーダルの再表示が上手くいかないので遅延を挟む
+    setTimeout(function(){
+        $('.modal-backdrop').remove();
+        while(true){
+            if(!this.duplicateModalIsOpen){
+                $('#duplicateWindow')
+                    .modal();
+                    
+                break;            
+            }    
+        };
+    },500);
 };
 
 // デモ用

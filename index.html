@@ -192,7 +192,7 @@
 
 <div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true" id="tokenWindow" data-backdrop="static">
     <div class="modal-header">
-        <h4>Input Token</h4>
+        <h4>Input Username</h4>
     </div>
 
     <div class="modal-body">
@@ -203,8 +203,25 @@
     </div>
 
     <div class="modal-footer">
-        <div id="tokenMessage"></div>
+        <div id="tokenMessage" class="alertText"></div>
         <div class="btn btn-success" id="tokenSubmit">Submit</div>
+    </div>
+</div>
+
+<div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true" id="duplicateWindow" data-backdrop="static">
+    <div class="modal-header">
+        <h4>Duplicate Username</h4>
+    </div>
+
+    <div class="modal-body">
+        <input type="hidden" name="a" value="1"/>
+        <p class="alertText">Please, input username again.</p>
+        Name<input type="text" class="form-control" id="duplicateNameInput" placeholder="Name" value="default" required><br>
+    </div>
+
+    <div class="modal-footer">
+        <div id="tokenMessage" class="alertText"></div>
+        <div class="btn btn-success" id="usernameSubmit">Submit</div>
     </div>
 </div>
 
