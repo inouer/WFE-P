@@ -67,35 +67,36 @@ function WFEPController(){
 
     // ポインタの送信間隔タイマー
     this.pointerIntervalTimer;
+    
+    // アノテーションの送信間隔タイマー
+    this.annotationIntervalTimer;
 
     // ユーザーエージェント
     this.UA;
 
     // 同期オンオフの状態
     this.syncState = true;
+    
+    // デバイスの初期状態の向き
+    this.initIsLandscape;
 };
 
-WFEPController.prototype.init = function(){
+WFEPController.prototype.init = function(){    
     // user id
     this.userID = window.wfepcontroller.makeRandobet(128);
 
     // ユーザーエージェント
-    window.wfepcontroller.getUA();
-
-    var timer = false;
+    this.getUA();
+    
+    // モバイルの場合はアドレスバーを消す
+    this.hideAddressBar();
+    
+    // 初期状態の向きを調べる
+    this.initIsLandscape = this.isLandscape();
+    
+    // リサイズ時の動作のみ先に定義
     $(window)
-        .on("beforeunload",function(e){
-            // ユーザの削除処理
-            var msg = {
-                "type":"client_disconnect",
-                "userid":window.wfepcontroller.userID
-            };
-            window.mickrmanager.sendMickr(msg);
-            
-            // サーバーから切断
-            MWClient.bye();
-        })
-        .resize(function() {
+        .on('resize',function() {
             // リサイズ操作が終わった時のみリロード
             if (timer) {
                 clearTimeout(timer);
@@ -116,6 +117,54 @@ WFEPController.prototype.init = function(){
                     location.reload();
                 }
             }, 200);
+        })
+        .on('orientationchange',function(){
+            if(Math.abs(window.orientation) === 90 && !window.wfepcontroller.initIsLandscape) {
+                location.reload();  
+                window.wfepcontroller.initIsLandscape = true; 
+            }else if(Math.abs(window.orientation) === 0){
+                $('#rotateDeviceWindow')
+                    .modal('show');
+            }else{
+                $('#rotateDeviceWindow')
+                    .modal('hide');
+            }         
+        });
+
+    // デバイスの向きを検証
+    if(!this.isLandscape()){
+        $('tokenWindow')
+            .modal('hide');
+        
+        $('#rotateDeviceWindow')
+            .modal();
+        
+        return;
+    };
+    
+    // ウインドウサイズを検証
+    if(!this.isAppropriateBrowserSize()){
+        $('tokenWindow')
+            .modal('hide');
+            
+        $('#expandBrowserSizeWindow')
+            .modal();
+        
+        return;
+    };
+    
+    var timer = false;
+    $(window)
+        .on("beforeunload",function(e){
+            // ユーザの削除処理
+            var msg = {
+                "type":"client_disconnect",
+                "userid":window.wfepcontroller.userID
+            };
+            window.mickrmanager.sendMickr(msg);
+            
+            // サーバーから切断
+            MWClient.bye();
         })
         .keydown(function(e){
             // ページめくり
@@ -200,18 +249,20 @@ WFEPController.prototype.init = function(){
             $('.contextMenu')
                 .hide();
 
-            if(e.which==1 && !window.wfepcontroller.annotationDragging){
+            if(e.which==1){
                 // 長押し判定でポインタ表示
                 longClickTimer = setTimeout(function(){
-                    pointerFlag = true;
-
-                    $('#realtimeLayer')
-                        .css({
-                            cursor:"url('./img/pointer/"+window.wfepcontroller.pointers[window.wfepcontroller.pointerNumber]+"'), default"
-                        })
-                        .show();
-
-                    window.wfepcontroller.pointerMove(e);
+                    if(!window.wfepcontroller.annotationDragging){
+                        pointerFlag = true;
+    
+                        $('#realtimeLayer')
+                            .css({
+                                cursor:"url('./img/pointer/"+window.wfepcontroller.pointers[window.wfepcontroller.pointerNumber]+"'), default"
+                            })
+                            .show();
+    
+                        window.wfepcontroller.pointerMove(e);
+                    }
                 },500);
             }
 
@@ -241,7 +292,6 @@ WFEPController.prototype.init = function(){
                         .appendTo($('body'));
 
                     window.wfepcontroller.pointerMove(e);
-
                 }
             },1000);
         })
@@ -495,12 +545,15 @@ WFEPController.prototype.openTextMenu = function(e, pageX, pageY){
         // アノテーションの編集の場合
         removeButtonFlag = true;
 
+        var fontColor = window.wfepcontroller.rgbTo16($(e.target).css('color'));
+        var backgroundColor = window.wfepcontroller.rgbTo16($(e.target).css('background-color'));
+
         initVal = {
             id:$(e.target).attr('id'),
             text:$(e.target).html(),
             fontsize:window.wfepcontroller.getFontSize(e.target),
-            fontcolor:$(e.target).css('color'),
-            backgroundcolor:$(e.target).css('background-color'),
+            fontcolor:fontColor,
+            backgroundcolor:backgroundColor,
             left:$(e.target).position().left,
             top:$(e.target).position().top
         };
@@ -579,36 +632,34 @@ WFEPController.prototype.openTextMenu = function(e, pageX, pageY){
                 cmtType = "cmt_pri";
             }
 
-            // メッセージ送信
-            // msg: メッセージ本文
-            // to: 送信先(アスタリスクを指定すればOK)
-            // group: 送信先グループ(null を入れるか省略すればすべてのグループ)
+            var left = window.wfepcontroller.scaleTo(initVal.left,window.wfepcontroller.slidesizeW,1);
+            var top = window.wfepcontroller.scaleTo(initVal.top,window.wfepcontroller.slidesizeH,1);
+            var fontSize = window.wfepcontroller.scaleTo($('#annotationFontSize').val(),window.wfepcontroller.slidesizeW,1);
+
             var msg = {
                 type: cmtType,
                 cslide: window.wfepcontroller.cslide,
-                left: window.wfepcontroller.scaleTo(initVal.left,window.wfepcontroller.slidesizeW,1),
-                top: window.wfepcontroller.scaleTo(initVal.top,window.wfepcontroller.slidesizeH,1),
+                left: left,
+                top: top,
 //                img_width: $('#slideController').width(),
 //                img_height: $('#slideController').height(),
-                size: $('#annotationFontSize').val(),
+                size: fontSize,
                 color: $('#annotationFontColor').val(),
                 backgroundcolor: $('#annotationBackgroundColor').val(),
                 text: $('<div>').html($('#annotationInput').val()).text(),
                 id: initVal.id
             };
 
+            // アノテーションの生成
             window.wfepcontroller.manipulateAnnotation(msg);
 
-            // 配列に追加
-            window.wfepcontroller.annotations.push(msg);
-
-            msg.width = window.wfepcontroller.scaleTo($('#'+initVal.id).width(),window.wfepcontroller.slidesizeW,1);
-            //msg.width = $('#'+initVal.id).width();
-            msg.left = window.wfepcontroller.scaleTo(initVal.left,window.wfepcontroller.slidesizeW,1);
-            msg.top = window.wfepcontroller.scaleTo(initVal.top,window.wfepcontroller.slidesizeH,1);
-
+            // アノテーションを生成してから追加
+            msg.width = window.wfepcontroller.scaleTo($('#'+initVal.id).width()+5,window.wfepcontroller.slidesizeW,1);
+            
+            // アノテーションの生成を通知
             window.mickrmanager.sendMickr(msg);
 
+            // アノテーション生成メニューを閉じる
             window.wfepcontroller.closeContextMenu();
         });
 
@@ -637,7 +688,7 @@ WFEPController.prototype.openTextMenu = function(e, pageX, pageY){
     if(pageX>$(window).width()/2){
         textMenuX = pageX - $('#textMenu').width();
     }
-    if(pageY>$(window).height()/2){
+    if(pageY>$(window).height()/2-20){
         textMenuY = pageY - $('#textMenu').height();
     }
     $('#textMenu')
@@ -671,8 +722,10 @@ WFEPController.prototype.pointerMove = function(e, end){
         pointerLeft = e.originalEvent.targetTouches[0].pageX-e.originalEvent.targetTouches[0].target.offsetLeft;
         pointerTop = (e.originalEvent.targetTouches[0].pageY-e.originalEvent.targetTouches[0].target.offsetTop)-this.pointerSize+15;
     }else{
-        pointerLeft = e.offsetX+this.pointerSize/2;
-        pointerTop = e.offsetY+this.pointerSize/2;
+        pointerLeft = e.clientX-e.target.offsetLeft+this.pointerSize/2;
+        pointerTop = e.clientY-e.target.offsetTop+this.pointerSize/2;
+        // pointerLeft = e.offsetX+this.pointerSize/2;
+        // pointerTop = e.offsetY+this.pointerSize/2;
     }
 
     var msg = {
@@ -727,11 +780,24 @@ WFEPController.prototype.showPointer = function(pointerInfo){
 };
 
 WFEPController.prototype.manipulateAnnotation = function(annotationInfo){
+    // 保存
+    this.updateAnnotations(annotationInfo);
+    
+    if(annotationInfo.cslide != window.wfepcontroller.cslide) return;
+    
+    var left;
+    var top;
+    var size;
     // 調整
     if(annotationInfo.left < 1) {
-        annotationInfo.left = window.wfepcontroller.scaleTo(annotationInfo.left,1,window.wfepcontroller.slidesizeW);
-        annotationInfo.top = window.wfepcontroller.scaleTo(annotationInfo.top,1,window.wfepcontroller.slidesizeH);
-    }
+        left = window.wfepcontroller.scaleTo(annotationInfo.left,1,window.wfepcontroller.slidesizeW);
+        top = window.wfepcontroller.scaleTo(annotationInfo.top,1,window.wfepcontroller.slidesizeH);
+        size = window.wfepcontroller.scaleTo(annotationInfo.size,1,window.wfepcontroller.slidesizeW);
+    }else{
+        left = annotationInfo.left;
+        top = annotationInfo.top;
+        size = annotationInfo.size;
+    };
 
     if($('#'+annotationInfo.id).length==0){
         // アノテーションの生成
@@ -743,11 +809,11 @@ WFEPController.prototype.manipulateAnnotation = function(annotationInfo){
             })
             .css({
                 position:"absolute",
-                left:annotationInfo.left,
-                top:annotationInfo.top,
+                left:left,
+                top:top,
                 color:annotationInfo.color,
                 "background-color":annotationInfo.backgroundcolor,
-                "font-size":annotationInfo.size+"px",
+                "font-size":parseInt(size)+"px",
                 "date-slide":annotationInfo.slide
             })
             .html($('<div>').html(annotationInfo.text).text())
@@ -758,8 +824,9 @@ WFEPController.prototype.manipulateAnnotation = function(annotationInfo){
 
                     var msg = {
                         type: "cmt_movestart",
-                        left: window.wfepcontroller.scaleTo(ui.position.left,window.wfepcontroller.slidesizeW,1),
-                        top: window.wfepcontroller.scaleTo(ui.position.top,window.wfepcontroller.slidesizeH,1),
+                        left: window.wfepcontroller.scaleTo(ui.position.left+e.offsetX,window.wfepcontroller.slidesizeW,1),
+                        top: window.wfepcontroller.scaleTo(ui.position.top+e.offsetY,window.wfepcontroller.slidesizeH,1),
+                        id: $(e.target).attr("id")
 //                        img_width: $('#slideController').width(),
 //                        img_height: $('#slideController').height()
                     };
@@ -767,6 +834,16 @@ WFEPController.prototype.manipulateAnnotation = function(annotationInfo){
                 },
                 drag:function(e,ui){
                     window.wfepcontroller.annotationDragging = true;
+                                       
+                    // 30ms毎に送信
+                    if(typeof window.wfepcontroller.annotationIntervalTimer == "undefined"){
+                        clearTimeout(window.wfepcontroller.annotationIntervalTimer);
+                        window.wfepcontroller.annotationIntervalTimer = setTimeout(function(){
+                            window.wfepcontroller.annotationIntervalTimer = undefined;
+                        },30);
+                    }else{
+                        return;
+                    }
 
                     var msg = {
                         type: "cmt_moving",
@@ -819,13 +896,41 @@ WFEPController.prototype.manipulateAnnotation = function(annotationInfo){
         $('#'+annotationInfo.id)
             .css({
                 position:"absolute",
-                left:annotationInfo.left,
-                top:annotationInfo.top,
+                left:left,
+                top:top,
                 color:annotationInfo.color,
                 "background-color":annotationInfo.backgroundcolor,
-                "font-size":annotationInfo.size+"px"
+                "font-size":parseInt(size)+"px"
             })
             .html($('<div>').html(annotationInfo.text).text());
+    }
+};
+
+// アノテーションの更新
+WFEPController.prototype.updateAnnotations = function(annotation){
+    var exist = -1;
+    
+    this.annotations
+        .some(function(v, i){
+            if (v.id==annotation.id) exist = i;
+        });
+        
+    if(exist>=0){
+        this.annotations[exist] = annotation;
+    }else{
+        this.annotations.push(annotation);
+    }
+};
+
+// アノテーションの初期化
+WFEPController.prototype.clearAnnotations = function(slideIndex){
+    if(slideIndex == 'all'){
+        this.annotations.length = 0;
+    }else{
+        this.annotations
+            .some(function(v, i){
+                if (v.cslide==slideIndex) window.wfepcontroller.annotations.splice(i,1);
+            });
     }
 };
 
@@ -1070,7 +1175,7 @@ WFEPController.prototype.getUA = function(){
 };
 
 WFEPController.prototype.isMobile = function(){
-    if(window.wfepcontroller.UA == "iphone" || window.wfepcontroller.UA == "ipad" || window.wfepcontroller.UA == "android"){
+    if(window.wfepcontroller.UA == "iphone" || window.wfepcontroller.UA == "ipad" || window.wfepcontroller.UA == "android" || window.wfepcontroller.UA == "ipod"){
         return true;
     }else{
         return false;
@@ -1110,6 +1215,46 @@ WFEPController.prototype.setPointerColor = function(pointerIndex){
     $('#drawButton')
         .attr('src','img/pointer/'+window.wfepcontroller.pointers[window.wfepcontroller.pointerNumber]);
 
+};
+
+WFEPController.prototype.rgbTo16 = function(col){
+  return "#" + col.match(/\d+/g).map(function(a){return ("0" + parseInt(a).toString(16)).slice(-2)}).join("");
+};
+
+// 向きを判定
+WFEPController.prototype.isLandscape = function(){
+    if (this.isMobile()) {
+        var orientation = window.orientation;
+        if(orientation == 0){
+            return false;
+        }else{
+            return true;
+        }
+    }else{
+        return true;
+    }
+};
+
+// ブラウザのサイズ
+WFEPController.prototype.isAppropriateBrowserSize = function(){
+    if(!this.isMobile()){
+        var windowH = window.innerHeight ? window.innerHeight : $(window).height();
+        var windowW = window.innerWidth ? window.innerWidth : $(window).width();
+        
+        if(windowW<770 || (windowW < windowH*4/3)){
+            return false;
+        }else{
+            return true;
+        };
+    }else{
+        return true;
+    }
+};
+
+WFEPController.prototype.hideAddressBar = function(){
+    if(this.isMobile()){
+        setTimeout(scrollTo( 0, $('body').scrollHeight), 0);        
+    }
 };
 
 // サムネイルビューア関係
@@ -1203,7 +1348,7 @@ ThumbnailController.prototype.updateSelectedThumbnail = function(index){
             $(this).addClass('selectedThumbnail');
         }
     });
-}
+};
 
 // コメント送信関係
 function CommentController(){};
@@ -1593,7 +1738,7 @@ ComController.prototype.showComViewer = function(){
         
     this.settingRoomList();
     this.updateRoomList(0);
-    this.updateCommentView(0);
+    this.updateCommentView();
     
     this.settingUserList();
 };
@@ -1631,7 +1776,7 @@ ComController.prototype.settingRoomList = function(){
     $('.room')
         .on('click',function(){
             window.comcontroller.updateRoomList($(this).attr('data-index'));
-            window.comcontroller.updateCommentView($(this).attr('data-index'));
+            window.comcontroller.updateCommentView();
             window.comcontroller.updateCommentInputWithSelectedSlide($(this).attr('data-index'));
         });
 };
@@ -1654,9 +1799,9 @@ ComController.prototype.settingUserList = function(){
         
         var $li = $('<li/>');
         $li
-            .addClass('top7 commentUser')
+            .addClass('commentUser')
             .attr('data-userid',userID)
-            .html(userName)
+            .html('<img src="img/user.png" class="commentUserIcon">'+userName)
             .appendTo($('#commentUsers'));
     });    
     
@@ -1725,8 +1870,8 @@ ComController.prototype.initializeUserList = function(){
     this.users.length = 0;
 };
 
-ComController.prototype.updateCommentView = function(slideIndex){
-    slideIndex = parseInt(slideIndex);
+ComController.prototype.updateCommentView = function(){
+    var slideIndex = this.selectedRoomIndex;
     
     $('#commentView').html('');
     
@@ -1748,13 +1893,13 @@ ComController.prototype.updateCommentView = function(slideIndex){
                         .html(this.from);                    
                 }
                 $userTD
-                    .addClass('userTD');
+                    .addClass('commentView userTD');
                 $textTD
-                    .addClass('textTD')
+                    .addClass('commentView textTD')
                     .html(this.text);
                 var date = window.comcontroller.timestampToDate(this.timestamp);
                 $dateTD
-                    .addClass('fontsize5 dateTD')
+                    .addClass('commentView fontsize5 dateTD')
                     .html(date);
                 
                 $TR
@@ -1815,7 +1960,10 @@ ComController.prototype.analyzeCommentText = function(text){
                 var toUsers = this.split('@');
                 $.each(toUsers, function() {
                     if(this=="") return;
-                    window.comcontroller.toUser += this+",";
+                    
+                    if(window.comcontroller.usernameIsDuplicated(this)>=0){
+                        window.comcontroller.toUser += this+",";                        
+                    }
                 });
                         
                 break;
@@ -1872,7 +2020,6 @@ ComController.prototype.updateCommentInputWithSelectedSlide = function(slideInde
 };
 
 ComController.prototype.updateCommentInputWithSelectedUser = function(userID){    
-    // "@"で始まる部分を削除
     var oldText = $('#commentInput').val();
     var targetName = "";
     $.each(window.comcontroller.users, function() {
@@ -1882,9 +2029,12 @@ ComController.prototype.updateCommentInputWithSelectedUser = function(userID){
         }
     });
     
+    if(oldText.indexOf('@'+targetName+' ')==-1){
+        $('#commentInput')
+            .val('@'+targetName+' '+oldText);        
+    }      
     $('#commentInput')
-        .val('@'+targetName+' '+oldText)
-        .focus();        
+        .focus();  
 };
 
 ComController.prototype.timestampToDate = function(timestamp){
@@ -1917,7 +2067,10 @@ MickrManager.prototype.init = function(){
     $('#tokenWindow')
         .modal()
         .on('shown',function(){
-            $('#nameInput').focus();
+            if(window.wfepcontroller.UA == "iphone" || window.wfepcontroller.UA == "ipad" || window.wfepcontroller.UA == "android" || window.wfepcontroller.UA == "ipod"){
+            }else{
+                $('#nameInput').focus();
+            }
         });
     // window.mickrmanager.clientInit();
 
@@ -2104,7 +2257,7 @@ MickrManager.prototype.clientInit = function(){
                 window.wfepcontroller.jumpSlide(msg.cslide);
 
                 break;
-            case "cmt_slide":
+            case "cmt_pub":
                 window.wfepcontroller.manipulateAnnotation(msg);
                 break;
             case "cmt_moveend":
@@ -2127,18 +2280,24 @@ MickrManager.prototype.clientInit = function(){
                 break;
             case "cmt_embed":
                 window.comcontroller.addCommentToList(msg,date);
-                window.comcontroller.updateCommentView(msg.cslide);
+                window.comcontroller.updateCommentView();
                 
                 break;
             case "cmt_audience":
                 window.comcontroller.addCommentToList(msg,date);
-                window.comcontroller.updateCommentView(msg.cslide);
+                window.comcontroller.updateCommentView();
             
                 break;
             case "ssbegin":
                 // スライドのURL群
                 window.wfepcontroller.slideURLs = msg.url.split(/;;/);
+                
+                // アノテーションのクリア
+                window.wfepcontroller.clearAnnotations('all');
 
+                // コミュニケーションインターフェースのスライド一覧の更新
+                window.comcontroller.settingRoomList();
+                
                 window.wfepcontroller.jumpSlide(msg.cslide);
 
                 break;
@@ -2171,6 +2330,10 @@ MickrManager.prototype.clientInit = function(){
                 break;
             case "updateimg":
                 window.wfepcontroller.slideURLs[msg.cslide-1] = msg.url;
+                
+                // 対象のスライドのアノテーションが画像化されてしまうためアノテーションを削除
+                window.wfepcontroller.clearAnnotations(msg.cslide);                
+                
                 window.wfepcontroller.jumpSlide(msg.cslide);
 
                 break;
@@ -2320,6 +2483,8 @@ DemoSlide.prototype.init = function(){
 // 評価用
 function DoEvaluation(){
     this.testCount = 0;
+    
+    this.recodingServer = "";
 };
 
 DoEvaluation.prototype.init = function(){
@@ -2338,6 +2503,10 @@ DoEvaluation.prototype.doVote = function(color){
         };
         window.mickrmanager.sendMickr(msg);
     }
+};
+
+DoEvaluation.prototype.transferringRecodedData = function(){
+    
 };
 
 var doEvaluation = function(){

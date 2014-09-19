@@ -34,7 +34,7 @@ html, body {
     z-index: 1;
 }
 
-/*slideContainer‚ÆƒTƒCƒY‚ğ‡‚í‚¹‚é*/
+/*slideContainerï¿½ÆƒTï¿½Cï¿½Yï¿½ï¿½ï¿½ï¿½ï¿½í‚¹ï¿½ï¿½*/
 #realtimeLayer{
     position:absolute;
     /*width: 800px;*/
@@ -43,13 +43,13 @@ html, body {
     display: none;
 }
 
-/*slideContainer‚ÆƒTƒCƒY‚ğ‡‚í‚¹‚é*/
+/*slideContainerï¿½ÆƒTï¿½Cï¿½Yï¿½ï¿½ï¿½ï¿½ï¿½í‚¹ï¿½ï¿½*/
 #realtimeCanvas{
     position:absolute;
     z-index: 2;
 }
 
-/*slideContainer‚ÆƒTƒCƒY‚ğ‡‚í‚¹‚é*/
+/*slideContainerï¿½ÆƒTï¿½Cï¿½Yï¿½ï¿½ï¿½ï¿½ï¿½í‚¹ï¿½ï¿½*/
 #slideController{
     position:absolute;
     /*width: 800px;*/
@@ -74,7 +74,7 @@ html, body {
     position:absolute;
     top:0px;
     left:0px;
-    background-color:rgba(255,255,255,0.65);
+    background-color:rgba(0,0,0,0.65);
     z-index: 999;
     display:none;
 }
@@ -96,6 +96,7 @@ html, body {
     position: absolute;
     background-color: lightgray;
     padding: 5px;
+    font-size:12px;
     display: none;
     margin-bottom: 50px;
     z-index: 4;
@@ -103,7 +104,7 @@ html, body {
 
 #annotationInput{
     width: 200px;
-    height: 100px;
+    height: 80px;
     resize: none;
     font-size: 16px;
 }
@@ -111,9 +112,20 @@ html, body {
 #annotationFontSize{
     width: 50px;
     height: 30px;
+    margin-bottom: 5px;
+}
+
+#contextMenuButton{
+    margin-top:5px;
+    margin-bottom:5px;
+}
+
+#annotationSubmit{
+    padding: 5px 9px 5px 9px;    
 }
 
 #annotationRemove{
+    padding: 5px 9px 5px 9px;   
     display: none;
 }
 
@@ -342,9 +354,21 @@ html, body {
     background-color:rgba(135,206,250,0.65); 
 }
 
+.commentView{
+    background-color:#f9f9f9 !important;
+    padding: 2px !important;
+}
+
 .commentUser{
     font-size:10pt;
+    margin-top:1px;
+    margin-bottom:1px;
     cursor:pointer;
+}
+
+.commentUserIcon{
+    width:20px;
+    height:auto;
 }
 
 .userTD{
@@ -361,10 +385,29 @@ html, body {
 
 .alertText{
     color:#E00000;
-    font-size:12pt;
+    font-size:30pt;
 }
 
-/* ƒ}[ƒWƒ“—p */
+.alertBody{
+    text-align:center;
+}
+
+.alertImage{
+    width:300px;
+    height:auto;
+}
+
+/* ã‚«ãƒ©ãƒ¼ãƒ”ãƒƒã‚«ãƒ¼ã®CSSä¸Šæ›¸ã */
+.sp-preview{
+    width:15px;
+    height:15px
+}
+
+.sp-dd{
+    height:15px;
+}
+
+/* ï¿½}ï¿½[ï¿½Wï¿½ï¿½ï¿½p */
 .top5 { margin-top:5px; }
 .top7 { margin-top:7px; }
 .top10 { margin-top:10px; }
@@ -372,10 +415,10 @@ html, body {
 .top17 { margin-top:17px; }
 .top30 { margin-top:30px; }
 
-/* ‚‚³100% */
+/* ï¿½ï¿½ï¿½ï¿½100% */
 .height100 { height:100%; }
 
-/* ƒtƒHƒ“ƒgƒTƒCƒY */
+/* ï¿½tï¿½Hï¿½ï¿½ï¿½gï¿½Tï¿½Cï¿½Y */
 .fontsize5 { font-size:5pt };
 .fontsize10 { font-size:10pt };
 .fontsize12 { font-size:12pt };
