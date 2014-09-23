@@ -2079,20 +2079,19 @@ MickrManager.prototype.init = function(){
             if($('#nameInput').val() == ""){
                 $('#tokenMessage').html("Name is requred.");
                 $('#nameInput').focus();
-//                alert("Name is requred.");
                 return;
             }else{
                 window.mickrmanager.name = $('#nameInput').val();
             }
             
             // デモ用にトークン入力省略
-            //if($('#tokenInput').val() == ""){
-            //    $('#tokenMessage').html("Token is requred.");
-            //    $('#tokenInput').focus();
-            //    return;
-            //}else{
-            //    window.mickrmanager.token = $('#tokenInput').val();
-            //}
+            if($('#tokenInput').val() == ""){
+                $('#tokenMessage').html("Token is requred.");
+                $('#tokenInput').focus();
+                return;
+            }else{
+                window.mickrmanager.token = $('#tokenInput').val();
+            }
 
             $('#tokenWindow')
                 .modal('hide');
@@ -2128,6 +2127,14 @@ MickrManager.prototype.init = function(){
     $('#duplicateWindow')
         .on('shown',function(){
             window.mickrmanager.duplicateModalIsOpen = true;
+            
+            $('#usedName')
+                .html('"'+window.mickrmanager.name+'"');
+            var dynamicFontSize = $('#usedName').width()/$('#usedName').html().length;
+            $('#usedName')
+                .css({
+                    "font-size":dynamicFontSize+"px"
+                });
             
             $('#duplicateNameInput')
                 .val(window.mickrmanager.name);

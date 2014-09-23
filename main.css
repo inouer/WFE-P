@@ -4,6 +4,11 @@ html, body {
     background-color: black;
 }
 
+input{
+    font-size:18px !important;
+    height:auto !important;
+}
+
 .margin-zero{
     margin-left: 0px !important;
 }
@@ -395,6 +400,11 @@ html, body {
 .alertImage{
     width:300px;
     height:auto;
+}
+
+#usedName{
+    width:500px;
+    word-wrap:break-word;
 }
 
 /* カラーピッカーのCSS上書き */

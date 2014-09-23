@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <!--viewportの設定-->
     <!--拡大防止-->
-    <meta name="viewport" content="user-scalable=no">
+    <meta name="viewport" content="width=device-width,user-scalable=no">
     <!-- アドレスバーを隠す -->
     <meta name="viewport" content="minimal-ui">
 
@@ -47,6 +47,8 @@
     <script src="lib/EasyCanvas/build/EasyCanvas.js"></script>
     <!--BalloonJS-->
     <script src="lib/balloonjs/jquery.balloon.min.js"></script>
+    <!--Fittext-->
+    <script src="lib/fittext/jquery.fittext.js"></script>
     <!--<script src="../lib/contextMenu.js"></script>-->
     <script src="main.js"></script>
 </head>
@@ -191,14 +193,14 @@
 
 <div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true" id="tokenWindow" data-backdrop="static">
     <div class="modal-header">
-        <h4>Input Username</h4>
+        <h4>Input Username and Token</h4>
     </div>
 
     <div class="modal-body">
         <input type="hidden" name="a" value="1"/>
         Name<input type="text" class="form-control" id="nameInput" placeholder="Name" value="default" required><br>
         <!-- デモ用にトークン入力省略 -->
-        <!-- Token<input type="text" class="form-control" id="tokenInput" placeholder="Token" value="default" required> -->
+        Token<input type="text" class="form-control" id="tokenInput" placeholder="Token" value="default" required>
     </div>
 
     <div class="modal-footer">
@@ -209,12 +211,12 @@
 
 <div class="modal fade" tabindex="-1" role="dialog" aria-hidden="true" id="duplicateWindow" data-backdrop="static">
     <div class="modal-header">
-        <h4>Username is Already Used</h4>
+        <h4>Input Username</h4>
     </div>
 
     <div class="modal-body">
         <input type="hidden" name="a" value="1"/>
-        <p class="alertText">Please, input username again.</p>
+        <div class="alertText"><div id="usedName"></div>is Already Used</div>
         Name<input type="text" class="form-control" id="duplicateNameInput" placeholder="Name" value="default" required><br>
     </div>
 
