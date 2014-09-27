@@ -22,7 +22,7 @@ function WFEPController(){
     this.fileName = "";
 
     // user id
-    this.userID;
+    this.userID = "";
 
     // current slide
     this.cslide = 0;
@@ -376,7 +376,7 @@ WFEPController.prototype.init = function(){
             var scale = event.originalEvent.scale;
 
             // 一定値より小さくなったらサムネイル表示
-            if(scale<0.6){
+            if($('#slideContainer').width()*scale<window.wfepcontroller.origSlideSizeW*0.3 || $('#slideContainer').height()*scale<window.wfepcontroller.origSlideSizeH*0.3){
                 // サムネイル表示
                 window.thumbnailcontroller.showSlideThumbnails();                
             }
@@ -1687,15 +1687,24 @@ function ComController(){
          timestamp: タイムスタンプ
      }
      */
-    
+     
+     // コメントの送り先 true=presenter, false=audience only
+     this.toPresenter = false;
 };
 
 ComController.prototype.init = function (){
+    // コメントの送り先選択スイッチ
+    $('#commentToSwitch')
+        .bootstrapSwitch()
+        .on('switchChange',function(e, data){
+            window.comcontroller.toPresenter = data.value;
+        });
+    
     $('#commentSubmit')
         .on('click',function(){
             window.comcontroller.analyzeCommentText($('#commentInput').val());
             
-            if(window.comcontroller.toUser==""){
+            if(window.comcontroller.toUser=="" && window.comcontroller.toPresenter){
                 window.comcontroller.sendCommentToPresenter();    
             }else{            
                 window.comcontroller.sendCommentToAudience();
@@ -1814,10 +1823,14 @@ ComController.prototype.settingUserList = function(){
 ComController.prototype.addCommentToList = function(msg,timestamp){
     this.comments
         .push({
+            "commentid":msg.commentid,
             "slideindex":msg.cslide,
             "text":msg.text,
             "from":msg.from,
             "to":msg.to,
+            "topresenter":msg.topresenter,
+            "goodcount":0,
+            "isgood":false,
             "timestamp":timestamp
         });
 };
@@ -1879,33 +1892,108 @@ ComController.prototype.updateCommentView = function(){
         if(this.slideindex == slideIndex || slideIndex == 0){
             var toList = this.to.split(',');
                         
-            if(this.to == "" || $.inArray(window.mickrmanager.name, toList) >= 0){
+            if(this.to == "" || $.inArray(window.mickrmanager.name, toList) >= 0 || this.from == window.mickrmanager.name){
                 var $TR = $('<tr/>');
                 var $userTD = $('<td/>');
                 var $textTD = $('<td/>');
                 var $dateTD = $('<td/>');
+                var $goodTD = $('<td/>');
                 
-                if(this.to!=""){
+                if(this.to != ""){
+                    // プライベートコメント
                     $userTD
+                        .addClass('commentViewToMe')
                         .html(this.from+" -> "+this.to.replace(/,/g," "));
-                }else{
-                    $userTD
-                        .html(this.from);                    
+                        
+                    $textTD
+                        .addClass('commentViewToMe');
+                        
+                    $dateTD
+                        .addClass('commentViewToMe');
+                        
+                    $goodTD
+                        .addClass('commentViewToMe');   
                 }
+                else if(this.topresenter){
+                    // プレゼンターへのコメント
+                    $userTD
+                        .addClass('commentViewToPresenter')
+                        .html(this.from+" -> <em>Presenter</em>");   
+                        
+                    $textTD
+                        .addClass('commentViewToPresenter');
+                        
+                    $dateTD
+                        .addClass('commentViewToPresenter');       
+                            
+                    $goodTD
+                        .addClass('commentViewToPresenter');         
+                }
+                else{
+                    // 聴衆全体へのコメント
+                    $userTD
+                        .addClass('commentView')
+                        .html(this.from);   
+                        
+                    $textTD
+                        .addClass('commentView');
+                        
+                    $dateTD
+                        .addClass('commentView');   
+                        
+                    $goodTD
+                        .attr('data-commentid',this.commentid)
+                        .addClass('commentView')  
+                        .html('<button class="btn btn-small commentGoodButton"><i class="icon-thumbs-up icon-large goodCommentIcon"></i><p class="goodCount">'+this.goodcount+'</p></button>')
+                        .on('click',function(e,ui){
+                            var commentID = $(this).attr('data-commentid');
+                            var $goodButton = $($(this).find('.commentGoodButton')[0]);
+                            
+                            var targetCommentIndex;                            
+                            // コメントを取得
+                            window.comcontroller.comments
+                                .some(function(v, i){
+                                    if (v.commentid==commentID){
+                                        targetCommentIndex = i;
+                                    };
+                                });  
+                            
+                            if(window.comcontroller.comments[targetCommentIndex].isgood){
+                                // コメントを未Goodにする
+                                window.comcontroller.comments[targetCommentIndex].isgood = false;
+                                
+                                window.comcontroller.sendGoodCount("decrement", commentID); 
+                            }else{                       
+                                // コメントをGood済みにする
+                                window.comcontroller.comments[targetCommentIndex].isgood = true;
+                                
+                                window.comcontroller.sendGoodCount("increment", commentID); 
+                            }
+                        });  
+                     
+                     if(this.isgood){
+                         $($goodTD.find('.commentGoodButton')[0])
+                            .addClass('btn-primary');
+                     }                
+                }
+                
                 $userTD
-                    .addClass('commentView userTD');
+                    .addClass('userTD');
                 $textTD
-                    .addClass('commentView textTD')
+                    .addClass('textTD')
                     .html(this.text);
                 var date = window.comcontroller.timestampToDate(this.timestamp);
                 $dateTD
-                    .addClass('commentView fontsize5 dateTD')
+                    .addClass('fontsize5 dateTD')
                     .html(date);
+                $goodTD
+                    .addClass('goodTD');
                 
                 $TR
                     .append($userTD)
                     .append($textTD)
                     .append($dateTD)
+                    .append($goodTD)
                     .prependTo($('#commentView'));                
             }
         }
@@ -1918,10 +2006,12 @@ ComController.prototype.sendCommentToPresenter = function(){
 
     var msg = {
         type: "cmt_embed",
+        commentid: window.wfepcontroller.makeRandobet(128),
         from: window.mickrmanager.name,
         to: window.comcontroller.toUser,
         cslide: window.comcontroller.cslide,
-        text: window.comcontroller.commentText
+        text: window.comcontroller.commentText,
+        topresenter: window.comcontroller.toPresenter
     };
     window.mickrmanager.sendMickr(msg);
 
@@ -1934,10 +2024,12 @@ ComController.prototype.sendCommentToAudience = function(){
 
     var msg = {
         type: "cmt_audience",
+        commentid: window.wfepcontroller.makeRandobet(128),
         from: window.mickrmanager.name,
         to: window.comcontroller.toUser,
         cslide: window.comcontroller.cslide,
-        text: window.comcontroller.commentText
+        text: window.comcontroller.commentText,
+        topresenter: window.comcontroller.toPresenter
     };
     window.mickrmanager.sendMickr(msg);
 
@@ -2035,6 +2127,31 @@ ComController.prototype.updateCommentInputWithSelectedUser = function(userID){
     }      
     $('#commentInput')
         .focus();  
+};
+
+ComController.prototype.updateCommentGoodCount = function(val, commentID){
+    this.comments
+        .some(function(v, i){
+            if (v.commentid==commentID){
+                if(val=="increment"){
+                    v.goodcount+=1;
+                }else{
+                    v.goodcount-=1;
+                }
+            };
+        });  
+    
+    this.updateCommentView(); 
+};
+
+ComController.prototype.sendGoodCount = function(val, commentID){
+    var msg = {
+        type: "cmt_goodcount",
+        id: window.wfepcontroller.userID,
+        commentid: commentID,
+        val: val
+    };
+    window.mickrmanager.sendMickr(msg);
 };
 
 ComController.prototype.timestampToDate = function(timestamp){
@@ -2294,6 +2411,10 @@ MickrManager.prototype.clientInit = function(){
                 window.comcontroller.addCommentToList(msg,date);
                 window.comcontroller.updateCommentView();
             
+                break;
+            case "cmt_goodcount":
+                window.comcontroller.updateCommentGoodCount(msg.val, msg.commentid);
+                
                 break;
             case "ssbegin":
                 // スライドのURL群

@@ -5,7 +5,7 @@ html, body {
 }
 
 input{
-    font-size:18px !important;
+    font-size:25px !important;
     height:auto !important;
 }
 
@@ -84,6 +84,16 @@ input{
     display:none;
 }
 
+/* bootswitch 上書き(commentToSwitchのため) */
+.bootstrap-switch-small{
+    width:230px;
+    border: 0px !important;
+    user-select: none; /* CSS3 */
+    -moz-user-select: none; /* Firefox */
+    -webkit-user-select: none; /* Safari、Chromeなど */
+    -ms-user-select: none; /* IE10かららしい */
+}
+
 .images{
     width: 100%;
     height: 100%;
@@ -151,7 +161,7 @@ input{
 
 #commentInput{
     background-color:#FFFFFF;
-    width:400px;
+    width:500px;
     margin: 0 auto;
     border: solid 2px #000000;
     text-align:left;
@@ -361,7 +371,14 @@ input{
 
 .commentView{
     background-color:#f9f9f9 !important;
-    padding: 2px !important;
+}
+
+.commentViewToPresenter{
+    background-color:#FFDAB9 !important;    
+}
+
+.commentViewToMe{
+    background-color:#AFEEEE !important;    
 }
 
 .commentUser{
@@ -377,15 +394,41 @@ input{
 }
 
 .userTD{
-    width:20%;
+    width:15%;
+    padding: 2px !important;
 }
 
 .textTD{
     width:70%;
+    padding: 2px !important;
 }
 
 .dateTD{
     width:10%;
+    padding: 2px !important;
+}
+
+.goodTD{
+    width:5%;
+    padding: 2px !important;
+}
+
+.commentGoodButton{
+    width:50px;
+    padding:1px !important;
+    user-select: none; /* CSS3 */
+    -moz-user-select: none; /* Firefox */
+    -webkit-user-select: none; /* Safari、Chromeなど */
+    -ms-user-select: none; /* IE10かららしい */
+}
+
+.goodCommentIcon{
+    float: left;
+    vertical-align:middle;
+}
+
+.goodCount{
+    margin:0px !important;
 }
 
 .alertText{
