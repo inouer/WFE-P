@@ -1690,6 +1690,9 @@ function ComController(){
      
      // コメントの送り先 true=presenter, false=audience only
      this.toPresenter = false;
+     
+     // プレゼンターにコメントを送信するボーダー
+     this.goodCountBorder = 1;
 };
 
 ComController.prototype.init = function (){
@@ -1704,10 +1707,12 @@ ComController.prototype.init = function (){
         .on('click',function(){
             window.comcontroller.analyzeCommentText($('#commentInput').val());
             
+            if(window.comcontroller.commentText=="") return;
+            
             if(window.comcontroller.toUser=="" && window.comcontroller.toPresenter){
-                window.comcontroller.sendCommentToPresenter();    
+                window.comcontroller.sendCommentToPresenter(window.comcontroller.commentText);    
             }else{            
-                window.comcontroller.sendCommentToAudience();
+                window.comcontroller.sendCommentToAudience(window.comcontroller.commentText);
             };
         });
         
@@ -1736,6 +1741,8 @@ ComController.prototype.init = function (){
 
 ComController.prototype.showComViewer = function(){
     this.isShown = true;
+    
+    $('#commentInput').val('');
     
     $('#comLayer')
         .css({
@@ -1835,6 +1842,14 @@ ComController.prototype.addCommentToList = function(msg,timestamp){
         });
 };
 
+ComController.prototype.removeCommentFromList = function(msg){
+    var targetID = msg.commentid;
+    this.comments
+        .some(function(v, i){
+            if (v.commentid==targetID) window.comcontroller.comments.splice(i,1);
+        });   
+};
+
 ComController.prototype.addUserToList = function(msg,timestamp){
     // 重複確認
     var targetID = msg.userid;
@@ -1903,7 +1918,7 @@ ComController.prototype.updateCommentView = function(){
                     // プライベートコメント
                     $userTD
                         .addClass('commentViewToMe')
-                        .html(this.from+" -> "+this.to.replace(/,/g," "));
+                        .html(this.from+"<br> -> "+this.to.replace(/,/g," "));
                         
                     $textTD
                         .addClass('commentViewToMe');
@@ -1918,7 +1933,7 @@ ComController.prototype.updateCommentView = function(){
                     // プレゼンターへのコメント
                     $userTD
                         .addClass('commentViewToPresenter')
-                        .html(this.from+" -> <em>Presenter</em>");   
+                        .html(this.from+"<br> -> <em>Presenter</em>");   
                         
                     $textTD
                         .addClass('commentViewToPresenter');
@@ -1967,7 +1982,7 @@ ComController.prototype.updateCommentView = function(){
                                 // コメントをGood済みにする
                                 window.comcontroller.comments[targetCommentIndex].isgood = true;
                                 
-                                window.comcontroller.sendGoodCount("increment", commentID); 
+                                window.comcontroller.sendGoodCount("increment", commentID);
                             }
                         });  
                      
@@ -2000,36 +2015,30 @@ ComController.prototype.updateCommentView = function(){
     });
 };
 
-ComController.prototype.sendCommentToPresenter = function(){    
-    // コメントが入力されていない時
-    if(this.commentText=="") return;
-
+ComController.prototype.sendCommentToPresenter = function(commentText){
     var msg = {
         type: "cmt_embed",
         commentid: window.wfepcontroller.makeRandobet(128),
         from: window.mickrmanager.name,
         to: window.comcontroller.toUser,
         cslide: window.comcontroller.cslide,
-        text: window.comcontroller.commentText,
-        topresenter: window.comcontroller.toPresenter
+        text: commentText,
+        topresenter: true
     };
     window.mickrmanager.sendMickr(msg);
 
     $('#commentInput').val('');
 };
 
-ComController.prototype.sendCommentToAudience = function(){
-    // コメントが入力されていない時
-    if(this.commentText=="") return;
-
+ComController.prototype.sendCommentToAudience = function(commentText){
     var msg = {
         type: "cmt_audience",
         commentid: window.wfepcontroller.makeRandobet(128),
         from: window.mickrmanager.name,
         to: window.comcontroller.toUser,
         cslide: window.comcontroller.cslide,
-        text: window.comcontroller.commentText,
-        topresenter: window.comcontroller.toPresenter
+        text: commentText,
+        topresenter: false
     };
     window.mickrmanager.sendMickr(msg);
 
@@ -2129,12 +2138,34 @@ ComController.prototype.updateCommentInputWithSelectedUser = function(userID){
         .focus();  
 };
 
-ComController.prototype.updateCommentGoodCount = function(val, commentID){
+// 受信した情報に基づきGood数を更新
+ComController.prototype.updateCommentGoodCount = function(msg){
+    var val = msg.val;
+    var commentID = msg.commentid;
+    var userID = msg.id;
+    
     this.comments
         .some(function(v, i){
             if (v.commentid==commentID){
                 if(val=="increment"){
                     v.goodcount+=1;
+                    
+                    // Good数が一定値を超えたらプレゼンターに送信
+                    if(v.goodcount>=window.comcontroller.users.length*window.comcontroller.goodCountBorder && !v.topresenter){
+                        v.topresenter = true;
+                        
+                        if(userID==window.wfepcontroller.userID){
+                            window.comcontroller.cslide = v.slideindex;
+                            window.comcontroller.sendCommentToPresenter(v.text);         
+                            
+                            // コメントの削除処理
+                            var msg = {
+                                "type":"cmt_remove",
+                                "commentid":v.commentid
+                            };
+                            window.mickrmanager.sendMickr(msg);     
+                        }
+                    }
                 }else{
                     v.goodcount-=1;
                 }
@@ -2413,7 +2444,12 @@ MickrManager.prototype.clientInit = function(){
             
                 break;
             case "cmt_goodcount":
-                window.comcontroller.updateCommentGoodCount(msg.val, msg.commentid);
+                window.comcontroller.updateCommentGoodCount(msg);
+                
+                break;
+            case "cmt_remove":
+                window.comcontroller.removeCommentFromList(msg);
+                window.comcontroller.updateCommentView();
                 
                 break;
             case "ssbegin":
