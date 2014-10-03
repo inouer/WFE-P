@@ -2358,6 +2358,9 @@ MickrManager.prototype.clientInit = function(){
             type: "get_imgurls"
         };
         window.mickrmanager.sendMickr(msg);
+        
+        // 評価
+        window.doevaluation.getEvaluationToken();
     };
     MWClient.onBye = function(res) {
         // Bye が完了した後に実行される
@@ -2579,6 +2582,14 @@ MickrManager.prototype.clientInit = function(){
                 }
                 
                 break;
+            case "post_evaluation_token":
+                window.doevaluation.setEvaluationToken(msg);
+                
+                break;
+            case "post_evaluation":
+                window.doevaluation.sendEvaluationInfoToSever(msg);
+                
+                break;
             default : break;
         };
     };
@@ -2586,6 +2597,12 @@ MickrManager.prototype.clientInit = function(){
 
 MickrManager.prototype.sendMickr = function(msg){
     msg.from = this.name;
+
+    if(window.doevaluation.evaluationMode){
+        var date = new Date();
+        msg.starttime = date.getTime();
+        msg.evaluationtoken = window.doevaluation.evaluationToken;
+    }
 
     var to = "*";
     var group = this.token;
@@ -2646,53 +2663,65 @@ DemoSlide.prototype.init = function(){
 
 // 評価用
 function DoEvaluation(){
-    this.testCount = 0;
+    this.evaluationMode = false;
     
-    this.recodingServer = "";
+    this.evaluationToken = "";
+    
+    this.resultSeverURL = "";
 };
 
-DoEvaluation.prototype.init = function(){
+DoEvaluation.prototype.init = function(){    
 };
 
-DoEvaluation.prototype.doVote = function(color){
-    if(window.vote.voteState && window.wfepcontroller.cslide == window.vote.voteSlide){
-        var now = new Date();
+DoEvaluation.prototype.getEvaluationToken = function(){
+    // 実験識別用のトークンを生成(Silhouette Effect側で)
+    var msg = {
+        type: "get_evaluation_token"
+    };
+    window.mickrmanager.sendMickr(msg);
+};
 
-        var msg = {
-            type:"vote",
-            cslide:window.vote.voteSlide,
-            color:color,
-            myts:now*1,
-            testcount:window.doevaluation.testCount
-        };
-        window.mickrmanager.sendMickr(msg);
+DoEvaluation.prototype.setEvaluationToken = function(msg){
+    this.evaluationMode = true;
+    
+    this.evaluationToken = msg.evaluationtoken;
+    
+    console.log("evaluationToken: "+this.evaluationToken);
+};
+
+DoEvaluation.prototype.sendEvaluationInfoToSever = function(msg){
+    // 経過時間計算
+    var date = new Date();
+    date = parseInt(date.getTime());
+    var time = date - parseInt(msg.starttime);
+    
+    msg.time = time;
+    msg.starttime = parseInt(msg.starttime);
+    msg.endtime = date;
+
+    console.log(msg);
+    
+    if(this.resultSeverURL!=""){
+        $.ajax({
+            url: window.doevaluation.resultServerURL,
+            type: "POST",
+            data: msg
+        })
+        .then(
+            function(data, status, xhr) {
+                // 通信成功時の処理
+            },
+            function(xhr, status, error) {
+                // 通信失敗時の処理
+            }
+        );
     }
-};
-
-DoEvaluation.prototype.transferringRecodedData = function(){
     
 };
 
-var doEvaluation = function(){
-    console.log("send! "+window.doevaluation.testCount);
-
-    if(window.doevaluation.testCount>=10){
-        return;
-    }else if(window.doevaluation.testCount==0){
-        window.mickrmanager.name = window.wfepcontroller.makeRandobet(32);
-    }
-    window.doevaluation.testCount++;
-
-    var rand = Math.floor(Math.random() * 5) + 2;
-    window.doevaluation.doVote(rand);
-
-    var randTime = getExpRand(60000);
-    setTimeout("doEvaluation('"+window.doevaluation.testCount+"')",randTime);
-};
-
-function getExpRand(avg){
+DoEvaluation.prototype.getExpRand = function(avg){
     return Math.floor(-avg*(1.0/1.0)*Math.log(1.0-Math.random()));
-}
+};
 
 $(function() {
     window.mickrmanager = new MickrManager;
@@ -2716,7 +2745,8 @@ $(function() {
     window.vote = new Vote;
     window.vote.init();
 
-    //window.doevaluation = new DoEvaluation;
+    window.doevaluation = new DoEvaluation;
+    window.doevaluation.init();
 
     //window.demoslide = new DemoSlide;
     //window.demoslide.init();
