@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <!--viewportの設定-->
     <!--拡大防止-->
-    <meta name="viewport" content="width=device-width,user-scalable=no">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
     <!-- アドレスバーを隠す -->
     <meta name="viewport" content="minimal-ui">
 
@@ -132,18 +132,23 @@
     <div class="navbar-inner">
         <div class="container-fluid">
             <div class="row-fluid">
-                <div class="span1 margin-zero">
+                <div class="span3 margin-zero" id="voteButtonContainer">
                     <div class="btn btn-custom-blue btn-vote" id="voteBlue">　</div>
-                </div>
-                <div class="span1 margin-zero">
                     <div class="btn btn-custom-red btn-vote" id="voteRed">　</div>
-                </div>
-                <div class="span1 margin-zero">
                     <div class="btn btn-custom-green btn-vote" id="voteGreen">　</div>
-                </div>
-                <div class="span1 margin-zero">
                     <div class="btn btn-custom-yellow btn-vote" id="voteYellow">　</div>
                 </div>
+                <!--
+                <div class="span1 margin-zero voteButtonContainer">
+                    <div class="btn btn-custom-red btn-vote" id="voteRed">　</div>
+                </div>
+                <div class="span1 margin-zero voteButtonContainer">
+                    <div class="btn btn-custom-green btn-vote" id="voteGreen">　</div>
+                </div>
+                <div class="span1 margin-zero voteButtonContainer">
+                    <div class="btn btn-custom-yellow btn-vote" id="voteYellow">　</div>
+                </div>
+                -->
 
                 <div class="span1 margin-zero">
                     <img id="leftArrow" class="arrows" src="./img/leftArrow.png">

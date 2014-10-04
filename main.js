@@ -1605,27 +1605,62 @@ function Vote(){
     };
 
     this.voteSlide = 0;
+    
+    this.labels = new Array;
+    
+    this.isLabelsShown = false;
+
+    this.mouseOverTimer;
+    
+    this.labelText;
 };
 
 Vote.prototype.init = function(){
+    this.labelText = "labああああああああああel1;;label2;;label3;;label4;;";
+    
     $('#voteBlue')
         .on('click',function(){
             window.vote.doVote(window.vote.colorList.blue);
+        })
+        .on('mouseover', function() { 
+            clearTimeout(window.vote.mouseOverTimer); 
         });
 
     $('#voteRed')
         .on('click',function(){
             window.vote.doVote(window.vote.colorList.red);
+        })
+        .on('mouseover', function() { 
+            clearTimeout(window.vote.mouseOverTimer); 
         });
 
     $('#voteGreen')
         .on('click',function(){
             window.vote.doVote(window.vote.colorList.green);
+        })
+        .on('mouseover', function() { 
+            clearTimeout(window.vote.mouseOverTimer); 
         });
 
     $('#voteYellow')
         .on('click',function(){
             window.vote.doVote(window.vote.colorList.yellow);
+        })
+        .on('mouseover', function() { 
+            clearTimeout(window.vote.mouseOverTimer); 
+        });
+        
+    $('#voteButtonContainer')
+        .on('mouseover',function(){
+            if(!window.wfepcontroller.isMobile()){
+                clearTimeout(window.vote.mouseOverTimer);
+                window.vote.showVoteLabels();                  
+            }    
+        })
+        .on('mouseout',function(){
+            window.vote.mouseOverTimer = setTimeout(function(){
+                window.vote.hideVoteLabels();
+            },100); 
         });
 };
 
@@ -1646,6 +1681,88 @@ Vote.prototype.doVote = function(color){
             color:color
         };
         window.mickrmanager.sendMickr(msg);
+    }
+};
+
+Vote.prototype.setVoteLabels = function(labels){ 
+    window.vote.labels.length = 0;
+    window.vote.labels = labels.split(/;;/);
+    window.vote.labels.pop();
+                
+    $.each(window.vote.labels, function(index) {
+        switch(index){
+            case 0:
+                $('#voteBlueLabel')
+                    .html(this);
+                break;
+            case 1:
+                $('#voteRedLabel')
+                    .html(this);
+                break;
+            case 2:
+                $('#voteGreenLabel')
+                    .html(this);
+                break;
+            case 3:
+                $('#voteYellowLabel')
+                    .html(this);
+                break;
+            default: break;
+        }
+    });
+};
+
+Vote.prototype.showVoteLabels = function(){
+    if(!this.isLabelsShown){
+        $('#voteButtonContainer')
+                .showBalloon({
+                    position:"top",
+                    tipSize:10,
+                    css: {
+                        opacity: '1.0',
+                        boxShadow: '0px 0px 0px #000'
+                    },
+                    contents: '<div class="container" id="voteLabelWindow">'+
+                                '<div class="row-fluid text-center top10">'+
+                                    '<div class="span6 margin-zero">'+
+                                        '<div class="btn btn-custom-blue btn-vote">　</div>'+
+                                        '<div class="voteLabel" id="voteBlueLabel">　　　　　　　　　　</div>'+
+                                    '</div>'+
+                                    '<div class="span6 margin-zero">'+
+                                        '<div class="btn btn-custom-red btn-vote">　</div>'+
+                                        '<div class="voteLabel" id="voteRedLabel">　　　　　　　　　　</div>'+
+                                    '</div>'+
+                                '</div>'+
+        
+                                '<div class="row-fluid text-center top10">'+
+                                    '<div class="span6 margin-zero">'+
+                                        '<div class="btn btn-custom-green btn-vote">　</div>'+
+                                        '<div class="voteLabel" id="voteGreenLabel">　　　　　　　　　　</div>'+
+                                    '</div>'+
+                                    '<div class="span6 margin-zero">'+
+                                        '<div class="btn btn-custom-yellow btn-vote">　</div>'+
+                                        '<div class="voteLabel" id="voteYellowLabel">　　　　　　　　　　</div>'+
+                                    '</div>'+
+                                '</div>'+
+                              '</div>',
+                    showDuration: "show",
+                    showAnimation: function(d){
+                        this.fadeIn(d);
+                        
+                        window.vote.setVoteLabels(window.vote.labelText);
+                    }
+                });
+        
+        this.isLabelsShown = true;
+    }
+};
+
+Vote.prototype.hideVoteLabels = function(){
+    if(this.isLabelsShown){        
+        $('#voteButtonContainer')
+            .hideBalloon();
+            
+        this.isLabelsShown = false;            
     }
 };
 
@@ -2359,6 +2476,12 @@ MickrManager.prototype.clientInit = function(){
         };
         window.mickrmanager.sendMickr(msg);
         
+        // 投票中ならば選択肢のラベル取得
+        var msg = {
+            type: "get_voteitems"
+        };
+        window.mickrmanager.sendMickr(msg);
+        
         // 評価
         window.doevaluation.getEvaluationToken();
     };
@@ -2393,6 +2516,7 @@ MickrManager.prototype.clientInit = function(){
         }
 
         switch(msg.type){
+            /* プレゼン画像取得 */
             case "post_imgurls":
                 // スライドのURL群
                 window.wfepcontroller.slideURLs.length = 0;
@@ -2415,27 +2539,22 @@ MickrManager.prototype.clientInit = function(){
                 window.wfepcontroller.jumpSlide(msg.cslide);
 
                 break;
+                
+            /* アノテーション */
             case "cmt_pub":
                 window.wfepcontroller.manipulateAnnotation(msg);
+                
                 break;
             case "cmt_moveend":
                 window.wfepcontroller.manipulateAnnotation(msg);
+                
                 break;
             case "cmt_moving":
                 window.wfepcontroller.manipulateAnnotation(msg);
+                
                 break;
-            case "pointer":
-                clearTimeout(window.wfepcontroller.pointerTimer);
-                window.wfepcontroller.pointerTimer = setTimeout(function(){
-                    $('.pointer').remove();
-                },1000);
-
-                // 同期オフのときは無視
-                if(window.wfepcontroller.syncState){
-                    window.wfepcontroller.showPointer(msg);
-                }
-
-                break;
+                
+            /* 埋め込みコメント */                    
             case "cmt_embed":
                 window.comcontroller.addCommentToList(msg,date);
                 window.comcontroller.updateCommentView();
@@ -2455,6 +2574,8 @@ MickrManager.prototype.clientInit = function(){
                 window.comcontroller.updateCommentView();
                 
                 break;
+            
+            /* ページめくり */    
             case "ssbegin":
                 // スライドのURL群
                 window.wfepcontroller.slideURLs = msg.url.split(/;;/);
@@ -2504,22 +2625,48 @@ MickrManager.prototype.clientInit = function(){
                 window.wfepcontroller.jumpSlide(msg.cslide);
 
                 break;
+                
+            /* ポインタ */    
+            case "pointer":
+                clearTimeout(window.wfepcontroller.pointerTimer);
+                window.wfepcontroller.pointerTimer = setTimeout(function(){
+                    $('.pointer').remove();
+                },1000);
+
+                // 同期オフのときは無視
+                if(window.wfepcontroller.syncState){
+                    window.wfepcontroller.showPointer(msg);
+                }
+
+                break;
+            
+            /* 手書きメモ */
             case "handwrite":
                 window.drawcanvas.syncDrawing(msg.imgurl,msg.cslide);
 
                 break;
+                
+            /* 投票 */    
             case "vote_start":
                 window.vote.activeVote(msg.cslide);
+                window.vote.setLabels(msg.items);
+                window.vote.showVoteLabels();
 
                 break;
             case "vote_end":
                 window.vote.closeVote();
+                window.vote.clearLabels(msg.items);
+                window.vote.hideVoteLabels();
 
                 break;
             case "vote_active":
                 window.vote.activeVote(msg.cslide);
-            
+                window.vote.setLabels(msg.items);
+                window.vote.showVoteLabels();
+
                 break;
+            
+            /* Webアプリケーションでのユーザ管理 */    
             case "client_connect":
                 // 重複確認
                 var duplicateIndex = window.comcontroller.usernameIsDuplicated(msg.name);
@@ -2553,6 +2700,7 @@ MickrManager.prototype.clientInit = function(){
                 window.comcontroller.settingUserList();             
                 
                 break;
+                
             // 以下WFE-P3
             case "show":
                 // 同期オフのときは無視
