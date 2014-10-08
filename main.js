@@ -248,6 +248,9 @@ WFEPController.prototype.init = function(){
             // スライド上でのクリック
             $('.contextMenu')
                 .hide();
+                
+            // voteのラベルビューを閉じる
+            window.vote.hideVoteLabels();
 
             if(e.which==1){
                 // 長押し判定でポインタ表示
@@ -1595,7 +1598,7 @@ DrawCanvas.prototype.getBlob = function(base64Image) {
 
 // Vote関連
 function Vote(){
-    this.voteState = true;
+    this.voteState = false;
 
     this.colorList = {
         blue:2,
@@ -1612,12 +1615,10 @@ function Vote(){
 
     this.mouseOverTimer;
     
-    this.labelText;
+    this.labelText = "label1;;label2;;label3;;label4;;";
 };
 
-Vote.prototype.init = function(){
-    this.labelText = "labああああああああああel1;;label2;;label3;;label4;;";
-    
+Vote.prototype.init = function(){    
     $('#voteBlue')
         .on('click',function(){
             window.vote.doVote(window.vote.colorList.blue);
@@ -1713,7 +1714,7 @@ Vote.prototype.setVoteLabels = function(labels){
 };
 
 Vote.prototype.showVoteLabels = function(){
-    if(!this.isLabelsShown){
+    if(!this.isLabelsShown && this.voteState){
         $('#voteButtonContainer')
                 .showBalloon({
                     position:"top",
@@ -1749,7 +1750,7 @@ Vote.prototype.showVoteLabels = function(){
                     showAnimation: function(d){
                         this.fadeIn(d);
                         
-                        window.vote.setVoteLabels(window.vote.labelText);
+                        // window.vote.setVoteLabels(window.vote.labelText);
                     }
                 });
         
@@ -2436,17 +2437,16 @@ MickrManager.prototype.init = function(){
     $('#duplicateNameInput')
         .keypress( function ( e ) {
             if ( e.which == 13 ) {
-                    $('#usernameSubmit').trigger('click');
+                $('#usernameSubmit').trigger('click');
+                
                 return false;
             }
         } )
         .focus(function() {
             $(this).select();
+            
             return false;    
         });
-        
-    // 評価用
-    //window.mickrmanager.clientInit();
 };
 
 MickrManager.prototype.clientInit = function(){
@@ -2481,9 +2481,6 @@ MickrManager.prototype.clientInit = function(){
             type: "get_voteitems"
         };
         window.mickrmanager.sendMickr(msg);
-        
-        // 評価
-        window.doevaluation.getEvaluationToken();
     };
     MWClient.onBye = function(res) {
         // Bye が完了した後に実行される
@@ -2537,6 +2534,9 @@ MickrManager.prototype.clientInit = function(){
                     });
                     
                 window.wfepcontroller.jumpSlide(msg.cslide);
+                
+                // 評価用
+                window.doevaluation.getEvaluationToken();
 
                 break;
                 
@@ -2649,7 +2649,7 @@ MickrManager.prototype.clientInit = function(){
             /* 投票 */    
             case "vote_start":
                 window.vote.activeVote(msg.cslide);
-                window.vote.setLabels(msg.items);
+                window.vote.setVoteLabels(msg.items);
                 window.vote.showVoteLabels();
 
                 break;
@@ -2661,7 +2661,7 @@ MickrManager.prototype.clientInit = function(){
                 break;
             case "vote_active":
                 window.vote.activeVote(msg.cslide);
-                window.vote.setLabels(msg.items);
+                window.vote.setVoteLabels(msg.items);
                 window.vote.showVoteLabels();
 
                 break;
@@ -2746,10 +2746,13 @@ MickrManager.prototype.clientInit = function(){
 MickrManager.prototype.sendMickr = function(msg){
     msg.from = this.name;
 
+    // 評価実験時には時間を記録
     if(window.doevaluation.evaluationMode){
         var date = new Date();
         msg.starttime = date.getTime();
         msg.evaluationtoken = window.doevaluation.evaluationToken;
+    }else if(window.doevaluation.getDataMode){
+        window.doevaluation.getData(msg);
     }
 
     var to = "*";
@@ -2813,12 +2816,29 @@ DemoSlide.prototype.init = function(){
 function DoEvaluation(){
     this.evaluationMode = false;
     
+    // プレゼンテーションを識別するためのランダムトークン
     this.evaluationToken = "";
     
-    this.resultSeverURL = "";
+    // evaluationディレクトリのindex.jsを実行しているサーバ
+    this.evaluationSeverURL = "http://133.68.14.167:3333"; // inouerのiMac
+    
+    this.getDataMode = false;
 };
 
 DoEvaluation.prototype.init = function(){    
+    this.getDataMode = true;
+};
+
+// テストケース構築のための操作データの収集
+DoEvaluation.prototype.getData = function(msg){
+    msg.evaluationtoken = window.doevaluation.evaluationToken;
+    msg.userid = window.wfepcontroller.userID;
+    msg.name = window.mickrmanager.name;
+    
+    console.log(msg);
+    
+    var successHandler = function(){};
+    this.sendEvaluationServer("/savemanipulationdata", msg, successHandler);
 };
 
 DoEvaluation.prototype.getEvaluationToken = function(){
@@ -2830,41 +2850,56 @@ DoEvaluation.prototype.getEvaluationToken = function(){
 };
 
 DoEvaluation.prototype.setEvaluationToken = function(msg){
-    this.evaluationMode = true;
+    // this. testCaseMode();
     
     this.evaluationToken = msg.evaluationtoken;
     
     console.log("evaluationToken: "+this.evaluationToken);
 };
 
-DoEvaluation.prototype.sendEvaluationInfoToSever = function(msg){
+DoEvaluation.prototype.testCaseMode = function(){
+    this.evaluationMode = true;    
+    this.getDataMode = false;
+};
+
+DoEvaluation.prototype.storeData = function(msg){
     // 経過時間計算
     var date = new Date();
     date = parseInt(date.getTime());
     var time = date - parseInt(msg.starttime);
     
+    // メッセージ作成
     msg.time = time;
     msg.starttime = parseInt(msg.starttime);
     msg.endtime = date;
 
     console.log(msg);
     
+    var successHandler = function(){};
+    this.sendEvaluationServer("/storeresult", msg, successHandler);
+};
+
+// mode(String): "store","fetch"
+// data(Object): 送信するデータ
+// successHandler(function): 成功時の処理
+DoEvaluation.prototype.sendEvaluationServer = function(mode, data, successHandler){
     if(this.resultSeverURL!=""){
+        var jsonData = JSON.stringify(data);
+        
         $.ajax({
-            url: window.doevaluation.resultServerURL,
+            url: window.doevaluation.evaluationSeverURL+mode,
             type: "POST",
-            data: msg
+            dataType: 'jsonp',
+            crossDomain: true,
+            data: {jsondata: jsonData}
         })
         .then(
-            function(data, status, xhr) {
-                // 通信成功時の処理
-            },
+            successHandler,
             function(xhr, status, error) {
                 // 通信失敗時の処理
             }
         );
-    }
-    
+    }    
 };
 
 DoEvaluation.prototype.getExpRand = function(avg){
