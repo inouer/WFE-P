@@ -250,7 +250,9 @@ WFEPController.prototype.init = function(){
                 .hide();
                 
             // voteのラベルビューを閉じる
-            window.vote.hideVoteLabels();
+            if(!window.wfepcontroller.isMobile()){
+                window.vote.hideVoteLabels();                
+            }
 
             if(e.which==1){
                 // 長押し判定でポインタ表示
@@ -472,6 +474,7 @@ WFEPController.prototype.init = function(){
             if($(event.originalEvent.target).attr('id')=="slideController"){
                 window.wfepcontroller.openContextMenu(event, event.originalEvent.changedTouches[0].pageX, event.originalEvent.changedTouches[0].pageY);
             }
+            
         });
 
     // リアルタイムレイヤー
@@ -1659,9 +1662,11 @@ Vote.prototype.init = function(){
             }    
         })
         .on('mouseout',function(){
-            window.vote.mouseOverTimer = setTimeout(function(){
-                window.vote.hideVoteLabels();
-            },100); 
+            if(!window.wfepcontroller.isMobile()){
+                window.vote.mouseOverTimer = setTimeout(function(){
+                    window.vote.hideVoteLabels();
+                },100);
+            } 
         });
 };
 
@@ -1686,9 +1691,11 @@ Vote.prototype.doVote = function(color){
 };
 
 Vote.prototype.setVoteLabels = function(labels){ 
-    window.vote.labels.length = 0;
-    window.vote.labels = labels.split(/;;/);
-    window.vote.labels.pop();
+    if(labels){
+        window.vote.labels.length = 0;
+        window.vote.labels = labels.split(/;;/);
+        window.vote.labels.pop();        
+    }
                 
     $.each(window.vote.labels, function(index) {
         switch(index){
@@ -1750,7 +1757,7 @@ Vote.prototype.showVoteLabels = function(){
                     showAnimation: function(d){
                         this.fadeIn(d);
                         
-                        // window.vote.setVoteLabels(window.vote.labelText);
+                        window.vote.setVoteLabels();
                     }
                 });
         
@@ -2655,7 +2662,6 @@ MickrManager.prototype.clientInit = function(){
                 break;
             case "vote_end":
                 window.vote.closeVote();
-                window.vote.clearLabels(msg.items);
                 window.vote.hideVoteLabels();
 
                 break;
@@ -2879,7 +2885,7 @@ DoEvaluation.prototype.storeData = function(msg){
     this.sendEvaluationServer("/storeresult", msg, successHandler);
 };
 
-// mode(String): "store","fetch"
+// mode(String): "/savemanipulationdata"→操作情報の記録，"/storeresult"→実験結果の保存
 // data(Object): 送信するデータ
 // successHandler(function): 成功時の処理
 DoEvaluation.prototype.sendEvaluationServer = function(mode, data, successHandler){
