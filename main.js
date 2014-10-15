@@ -1266,6 +1266,9 @@ WFEPController.prototype.hideAddressBar = function(){
 // サムネイルビューア関係
 function ThumbnailController(){
     this.isShown = false;
+    
+    this.thumbnailCache = new Array;
+    this.thumbnailCacheURLs = new Array;
 };
 
 ThumbnailController.prototype.init = function(){
@@ -1286,9 +1289,27 @@ ThumbnailController.prototype.init = function(){
         });
 };
 
+// サムネイルのキャッシュ生成
+ThumbnailController.prototype.makeThumbnailCache = function(){
+    this.thumbnailCache.length = 0;
+    this.thumbnailCacheURLs.length = 0;
+    
+    $.each(window.wfepcontroller.slideURLs,function(index){
+        var imgsrc = this;
+        
+        if(window.thumbnailcontroller.thumbnailCacheURLs[index] != imgsrc){
+            window.thumbnailcontroller.thumbnailCacheURLs[index] = imgsrc;
+            window.thumbnailcontroller.thumbnailCache[index] = new Image;
+            window.thumbnailcontroller.thumbnailCache[index].src = imgsrc;            
+        }
+    });
+};
+
 // サムネイル一覧表示
 ThumbnailController.prototype.showSlideThumbnails = function(){
     this.isShown = true;
+    
+    this.makeThumbnailCache();
     
     $('#thumbnailLayer').html('');
     $.each(window.wfepcontroller.slideURLs,function(index){
@@ -1306,10 +1327,10 @@ ThumbnailController.prototype.showSlideThumbnails = function(){
     this.updateSelectedThumbnail(window.wfepcontroller.cslide);
     
     $('.slideThumbnail')
-            .on('click',function(e, ui){
-                window.thumbnailcontroller.hideSlideThumbnails();
-                window.wfepcontroller.jumpSlide($(e.target).attr('data-slideIndex'));                
-            });
+        .on('click',function(e, ui){
+            window.thumbnailcontroller.hideSlideThumbnails();
+            window.wfepcontroller.jumpSlide($(e.target).attr('data-slideIndex'));                
+        });
     
     // サムネイル間のマージンを表示幅に合わせて動的に計算
     var minMargin = 20;
@@ -2861,6 +2882,13 @@ DoEvaluation.prototype.setEvaluationToken = function(msg){
     this.evaluationToken = msg.evaluationtoken;
     
     console.log("evaluationToken: "+this.evaluationToken);
+    
+    var data = {
+        "evaluationtoken":this.evaluationToken,
+        "title":"no data"
+    };
+    var successHandler = function(){};
+    this.sendEvaluationServer("/saveevaluationdata",data,successHandler);
 };
 
 DoEvaluation.prototype.testCaseMode = function(){

@@ -1,0 +1,26 @@
+.charts{
+    position:absolute;
+    width:400px;
+    height:300px;
+}
+
+#evaluationList{
+    margin-right : auto;
+    margin-left : auto
+}
+
+.evaluationIDs{
+    cursor:pointer;
+}
+
+.indexTD{
+    width:20%;
+}
+
+.tokenTD{
+    width:70%;
+}
+
+.dateTD{
+    width:10%;
+}
