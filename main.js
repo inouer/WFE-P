@@ -7,6 +7,9 @@
  */
 
 function WFEPController(){
+    // ウインドウの幅の最小値
+    this.windowWidowSizeBorder = 1000;
+    
     // スライドのURL
     this.slideURLs = new Array();
     /*
@@ -17,6 +20,9 @@ function WFEPController(){
          url: str    スライド画像のURL
      }
       */
+     
+    // WWCサーバ連携のベースURL
+    this.baseURL = "";
     
     // ファイル名
     this.fileName = "";
@@ -77,11 +83,14 @@ function WFEPController(){
     // 同期オンオフの状態
     this.syncState = true;
     
+    // ユーザの状態（audience，presenter，free）
+    this.userState = "free";
+    
     // デバイスの初期状態の向き
     this.initIsLandscape;
 };
 
-WFEPController.prototype.init = function(){    
+WFEPController.prototype.init = function(){  
     // user id
     this.userID = window.wfepcontroller.makeRandobet(128);
 
@@ -114,7 +123,20 @@ WFEPController.prototype.init = function(){
                 // モバイルのブラウザでは無視
                 if(window.wfepcontroller.isMobile()){
                 }else{
-                    location.reload();
+                    window.wfepcontroller.fitSlideSize();
+                    
+                    window.drawcanvas.fitCanvas();
+                    
+                    // ウインドウサイズを検証
+                    if(!window.wfepcontroller.isAppropriateBrowserSize()){
+                        $('#expandBrowserSizeWindow')
+                            .modal();
+                    }else{
+                        $('#expandBrowserSizeWindow')
+                            .modal('hide');                        
+                    };
+    
+                    //location.reload();     
                 }
             }, 200);
         })
@@ -169,7 +191,9 @@ WFEPController.prototype.init = function(){
         .keydown(function(e){
             // ページめくり
             if(e.keyCode == 37){
-                window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide-1);
+                window.wfepcontroller.backPage();
+                
+                // window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide-1);
                 
                 // var index = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex-1].index;
                 // var click = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex-1].click;
@@ -177,7 +201,9 @@ WFEPController.prototype.init = function(){
                 
                 return false;
             } else if (e.keyCode == 39){
-                window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide+1);
+                window.wfepcontroller.forwardPage();
+                
+                // window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide+1);
                 
                 // var index = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex+1].index;
                 // var click = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex+1].click;
@@ -191,7 +217,9 @@ WFEPController.prototype.init = function(){
     $('#leftArrow')
         .off()
         .on('click', function(){
-            window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide-1);
+            window.wfepcontroller.backPage();
+            
+            // window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide-1);
             
             // var index = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex-1].index;
             // var click = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex-1].click;
@@ -200,8 +228,9 @@ WFEPController.prototype.init = function(){
     $('#rightArrow')
         .off()
         .on('click', function(){
-            //window.wfepcontroller.showSlideThumbnails();
-            window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide+1);
+            window.wfepcontroller.forwardPage();
+            
+            // window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide+1);
             
             // var index = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex+1].index;
             // var click = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex+1].click;
@@ -214,7 +243,25 @@ WFEPController.prototype.init = function(){
         .on('switchChange',function(e, data){
             window.wfepcontroller.syncState = data.value;
         });
-
+    // 押されるたびfree→audience→presenter→free→...と変化
+    $('#userStateButton')
+        .on('click',function(){
+            var mode = $(this).attr('data-mode');
+            var newMode;
+            switch(mode){
+                case "audience":
+                    newMode = "presenter";
+                    break;
+                case "presenter":
+                    newMode = "free";
+                    break;
+                case "free":
+                    newMode = "audience";
+                    break;
+            }
+            window.wfepcontroller.setUserState(newMode);
+        });  
+        
     // スライドのサイズ
 //    this.slidesizeH = $("#slideContainer").find(":first-child").height();
     var windowH = window.innerHeight ? window.innerHeight : $(window).height();
@@ -275,6 +322,10 @@ WFEPController.prototype.init = function(){
         })
         .on('mouseup mouseout', function(e, ui){
             clearTimeout(longClickTimer);
+            
+            if(pointerFlag){
+                window.wfepcontroller.clickSlide(e);
+            }
         })
         .on('dblclick', function(e, ui){
             e.preventDefault();
@@ -325,6 +376,8 @@ WFEPController.prototype.init = function(){
                 pointerFlag = false;
 
                 window.wfepcontroller.pointerMove(e,true);
+            }else{
+                window.wfepcontroller.clickSlide(e);                
             };
         })
         .on('gesturechange', function(e){
@@ -341,7 +394,9 @@ WFEPController.prototype.init = function(){
         })
         .swipeLeft(function(){
             if($(event.originalEvent.target).attr('id')=="slideController"){
-                window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide+1);
+                window.wfepcontroller.forwardPage();
+                
+                // window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide+1);
                 
                 // var index = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex+1].index;
                 // var click = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex+1].click;
@@ -350,7 +405,9 @@ WFEPController.prototype.init = function(){
         })
         .swipeRight(function(){
             if($(event.originalEvent.target).attr('id')=="slideController"){
-                window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide-1);
+                window.wfepcontroller.backPage();
+                
+                // window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide-1);
                 
                 // var index = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex-1].index;
                 // var click = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex-1].click;
@@ -500,6 +557,8 @@ WFEPController.prototype.init = function(){
 
                 // 終了を通知
                 window.wfepcontroller.pointerMove(e,true);
+            }else{
+                
             }
         })
         .on('mousemove', function(e, ui){
@@ -509,11 +568,42 @@ WFEPController.prototype.init = function(){
                 window.wfepcontroller.pointerMove(e);
             }
         });
+};
 
-//    $('body')
-//        .on('click touchend', function(){
-//            window.wfepcontroller.toggleFullScreen($('body'));
-//        });
+WFEPController.prototype.fitSlideSize = function(){
+    // スライドのサイズ
+//    this.slidesizeH = $("#slideContainer").find(":first-child").height();
+    var windowH = window.innerHeight ? window.innerHeight : $(window).height();
+    this.slidesizeH = windowH - $('#bottomBar').height();
+    this.slidesizeW = this.slidesizeH*4/3;
+    $('#slideContainer')
+        .css({
+            height: this.slidesizeH,
+            width: this.slidesizeW
+        });
+    this.origSlideSizeW = this.slidesizeW;
+    this.origSlideSizeH = this.slidesizeH;
+    
+    $('#slideController')
+        .css({
+            left:$("#slideContainer").find(":first-child").offset().left,
+            height:this.slidesizeH,
+            width:this.slidesizeW
+        });
+        
+    $('#realtimeLayer')
+        .css({
+            left:$("#slideContainer").find(":first-child").offset().left,
+            height:this.slidesizeH,
+            width:this.slidesizeW
+        });
+        
+    $('#realtimeCanvas')
+        .css({
+            left:$("#slideContainer").find(":first-child").offset().left,
+            height:this.slidesizeH,
+            width:this.slidesizeW
+        });
 };
 
 WFEPController.prototype.controlLocking = function(){
@@ -785,6 +875,32 @@ WFEPController.prototype.showPointer = function(pointerInfo){
     }
 };
 
+// スライドクリックでページめくりとか
+WFEPController.prototype.clickSlide = function(e){
+    console.log(e);
+    
+    var $target = $(e.target);
+    
+    var clickPos = {
+        left:0,
+        top:0
+    };
+    
+    if(this.isMobile()){
+        clickPos.left = e.originalEvent.targetTouches[0].pageX-e.originalEvent.targetTouches[0].target.offsetLeft;
+        clickPos.top = e.originalEvent.targetTouches[0].pageY-e.originalEvent.targetTouches[0].target.offsetTop;
+    }else{
+        clickPos.left = e.clientX-e.target.offsetLeft;
+        clickPos.top = e.clientY-e.target.offsetTop;
+    }
+    
+    if(clickPos.left < $target.width()*0.2){
+        window.wfepcontroller.backPage();
+    }else if(clickPos.left > $target.width()*0.8){
+        window.wfepcontroller.forwardPage();        
+    }
+};
+
 WFEPController.prototype.manipulateAnnotation = function(annotationInfo){
     // 保存
     this.updateAnnotations(annotationInfo);
@@ -940,6 +1056,26 @@ WFEPController.prototype.clearAnnotations = function(slideIndex){
     }
 };
 
+WFEPController.prototype.forwardPage = function(){
+    // window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide+1);
+    
+    // var index = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex+1].index;
+    // var click = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex+1].click;
+    // window.wfepcontroller.jumpSlide2(index, click);   
+    
+    window.wfepcontroller.jumpSlide2(window.wfepcontroller.cslide+1,0);     
+};
+
+WFEPController.prototype.backPage = function(){
+    // window.wfepcontroller.jumpSlide(window.wfepcontroller.cslide-1);
+    
+    // var index = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex-1].index;
+    // var click = window.wfepcontroller.slideURLs[window.wfepcontroller.cListIndex-1].click;
+    // window.wfepcontroller.jumpSlide2(index, click);    
+    
+    window.wfepcontroller.jumpSlide2(window.wfepcontroller.cslide-1,0); 
+};
+
 // スライド遷移
 WFEPController.prototype.jumpSlide = function(index){
     index = parseInt(index);
@@ -960,7 +1096,7 @@ WFEPController.prototype.jumpSlide = function(index){
     if($('#commentInput').is(':focus') || $(".contextMenu").css('display') != 'none') return;
 
     //　描画保存・削除
-    window.drawcanvas.saveDrawing(this.cslide-1);
+    window.drawcanvas.clearDrawing();
 
     // cslide記憶
     this.cslide = index;
@@ -1027,7 +1163,7 @@ WFEPController.prototype.jumpSlide2 = function(index, click){
     if($('#commentInput').is(':focus') || $(".contextMenu").css('display') != 'none') return;
 
     //　描画保存・削除
-    window.drawcanvas.saveDrawing(this.cslide-1);
+    window.drawcanvas.clearDrawing(this.cslide-1);
 
     // cslide記憶
     this.cslide = index;
@@ -1065,13 +1201,24 @@ WFEPController.prototype.jumpSlide2 = function(index, click){
         });
 
         // 描画のロード
-        window.drawcanvas.loadDrawing(this.cslide-1);
+        window.drawcanvas.loadDrawing(window.wfepcontroller.slideURLs[listIndex].url);
     }catch (e){
         console.log(e);
     }
     
     // 表示中のスライドのサムネイルを強調
     window.thumbnailcontroller.updateSelectedThumbnail(this.cslide);
+    
+    // 発表者モードのときはメッセージ送信
+    if(window.wfepcontroller.userState == "presenter"){
+        var msg = {
+            type:'show',
+            index:this.cslide,
+            click:0,
+            baseurl: window.wfepcontroller.baseURL
+        };
+        window.mickrmanager.sendMickr(msg);
+    }
 };
 
 // スライドリストのインデックスを取得(WFE-P3)
@@ -1097,6 +1244,13 @@ WFEPController.prototype.updateList = function(index, click, url){
     var listIndex = this.getListIndex(index, click);
         
     if(listIndex<0){
+        var urlIndex = index;
+        var urlClick = "/"+click;
+        if(click==0) urlClick="";
+        if(typeof url == "undefined"){
+            url = window.wfepcontroller.baseURL+urlIndex+urlClick;
+        };
+        
         var newSlide = {
             index:index,
             click:click,
@@ -1105,8 +1259,96 @@ WFEPController.prototype.updateList = function(index, click, url){
         
         window.wfepcontroller.slideURLs.push(newSlide);
     }else{
-        window.wfepcontroller.slideURLs[listIndex].url = url;
+        if(typeof url != "undefined"){
+            window.wfepcontroller.slideURLs[listIndex].url = url;
+        };
     }
+    
+    console.log(this.slideURLs);
+    
+    this.updateSlider();
+};
+
+// スライダー設定
+WFEPController.prototype.updateSlider = function(){
+    $('#pageSlider')
+        .slider({
+            range:"min",
+            min: 1,
+            max: window.wfepcontroller.slideURLs.length,
+            step: 1,
+            slide: function(e, ui) {
+                var index = window.wfepcontroller.slideURLs[ui.value].index;
+                var click = window.wfepcontroller.slideURLs[ui.value].click;
+                
+                window.wfepcontroller.jumpSlide2(ui.value, click);
+                // window.wfepcontroller.jumpSlide2(index, click);
+            }
+        });
+};
+
+// 聴講者モード，発表者モード，フリーモードの変更
+WFEPController.prototype.setUserState = function(mode){
+    switch(mode){
+        case "audience":
+            this.userState = "audience";
+            
+            $('#userStateButton')
+                .removeClass('btn-default')
+                .addClass('btn-primary')
+                .text("audience")
+                .attr({
+                    'data-mode':"audience"
+                });
+                
+            // バーの色を変える
+            $('#bottomBarContainer')
+                .removeClass('navbarFreeMode')
+                .addClass('navbarAudienceMode');
+                        
+            break;
+        case "presenter":
+            this.userState = "presenter";
+            
+            $('#userStateButton')
+                .removeClass('btn-primary')
+                .addClass('btn-danger')
+                .text("presenter")
+                .attr({
+                    'data-mode':"presenter"
+                });
+                
+            // バーの色を変える
+            $('#bottomBarContainer')
+                .removeClass('navbarAudienceMode')
+                .addClass('navbarPresenterMode');
+                
+            break;
+        case "free":
+            this.userState = "free";
+            
+            $('#userStateButton')
+                .removeClass('btn-danger')
+                .addClass('btn-default')
+                .text("free")
+                .attr({
+                    'data-mode':"free"
+                });
+                
+            // バーの色を変える
+            $('#bottomBarContainer')
+                .removeClass('navbarPresenterMode')
+                .addClass('navbarFreeMode');
+                
+            break;
+        default: break;
+    };
+};
+
+WFEPController.prototype.initSettings = function(){
+    window.drawcanvas.activeDrawMode("pointer");
+    
+    window.wfepcontroller.setPointerColor(2);
 };
 
 //ランダム文字列生成
@@ -1247,7 +1489,7 @@ WFEPController.prototype.isAppropriateBrowserSize = function(){
         var windowH = window.innerHeight ? window.innerHeight : $(window).height();
         var windowW = window.innerWidth ? window.innerWidth : $(window).width();
         
-        if(windowW<770 || (windowW < windowH*4/3)){
+        if(windowW<this.windowWidowSizeBorder || (windowW < windowH*4/3)){
             return false;
         }else{
             return true;
@@ -1261,6 +1503,484 @@ WFEPController.prototype.hideAddressBar = function(){
     if(this.isMobile()){
         setTimeout(scrollTo( 0, $('body').scrollHeight), 0);        
     }
+};
+
+WFEPController.prototype.showLoadingLayer = function(){
+    $('#loadingLayer').show();
+};
+
+WFEPController.prototype.hideLoadingLayer = function(){
+    $('#loadingLayer').hide();
+};
+
+// 本棚関係
+function BookshelfController(){
+    this.WWCServer = "";
+    this.WWCToken = "";
+    
+    this.bookshelfLayerIsShown = false;
+    
+    this.backgroundURL = "./img/bookshelf.png";
+    this.defaultBackgroundW = 1100;
+    this.defaultBackgroundH = 804;
+    this.backgroundRatioW = 1.0;
+    this.backgroundRatioH = 1.0;
+    this.backgroundLeft = 0;
+    this.backgrounTop = 0;
+    
+    // px
+    this.documentGridInitLeft = 40;
+    this.documentGridInitTop = 70;
+    this.documentMarginHorizontal = 50;
+    this.documentMarginVertical = 60;
+    this.documentDefaultSize = 150;
+    this.documentSize;
+    this.documentRowNumber=5;
+    
+    this.documentLoadingIconDefault = 30;
+    this.loadingIconURL = "./img/loading.gif";
+    
+    this.documentIconURL = "./img/document.jpg";
+    
+    this.unavailableModalIsOpen = false;
+    
+    this.connectionTimer = undefined;    
+    
+    this.makeDocumentCacheTimer;
+    this.makeDocumentCacheCounter;
+    this.makeDocumentCacheNum;
+    this.makeDocumentCacheLimit=0;
+    
+    this.getPresentationsTimer;
+};
+
+BookshelfController.prototype.init = function(){
+    $('#unavailableWWCServerSubmit')
+        .on('click',function(){
+            if($('#unavailableWWCServerInput').val() == ""){
+                $('#tokenMessage').html("WWC Server is requred.");
+                $('#unavailableWWCServerInput').focus();
+                return;
+            }else if($('#unavailableTokenInput').val() == ""){
+                $('#tokenMessage').html("WWC Token is requred.");
+                $('#unavailableTokenInput').focus();
+                return;                
+            }else{
+                window.bookshelfcontroller.setServerAndToken($('#unavailableWWCServerInput').val(),$('#unavailableTokenInput').val());
+            };
+
+            $('#wwcServerWindow')
+                .modal('hide');
+            
+            window.bookshelfcontroller.getPresentations();
+        });
+    
+    $('#wwcServerWindow')
+        .on('shown',function(){
+            window.mickrmanager.unavailableModalIsOpen = true;
+            
+            $('.failedServer')
+                .html('"'+window.bookshelfcontroller.WWCServer+'"');
+            var dynamicFontSize = $('.failedServer').width()/$('.failedServer').html().length;
+            $('#failedServer')
+                .css({
+                    "font-size":dynamicFontSize+"px"
+                });
+            
+            $('.failedToken')
+                .html('"'+window.bookshelfcontroller.WWCToken+'"');
+            var dynamicFontSize = $('.failedToken').width()/$('.failedToken').html().length;
+            $('#failedToken')
+                .css({
+                    "font-size":dynamicFontSize+"px"
+                });
+                
+            $('#unavailableWWCServerInput')
+                .keypress( function ( e ) {
+                    if ( e.which == 13 ) {
+                        $('#unavailableWWCServerSubmit').trigger('click');
+                        
+                        return false;
+                    }
+                } )
+                .val(window.bookshelfcontroller.WWCServer);
+            $('#unavailableWWCServerInput').focus();
+            
+            $('#unavailableTokenInput')
+                .keypress( function ( e ) {
+                    if ( e.which == 13 ) {
+                        $('#unavailableWWCServerSubmit').trigger('click');
+                        
+                        return false;
+                    }
+                } )
+                .val(window.bookshelfcontroller.WWCToken);
+        })
+        .on('hide',function(){
+            window.mickrmanager.unavailableModalIsOpen = false;
+        });
+        
+    $('#backBookshelfButton')
+        .on('click',function(){
+            window.wfepcontroller.initSettings();
+            
+            window.drawcanvas.hideDrawMenu();
+            
+            window.bookshelfcontroller.slideinBookshelfLayer();
+        });
+        
+    this.makeBackgroundCache();
+};
+
+BookshelfController.prototype.showBookshelfLayer = function(){
+    this.bookshelfLayerIsShown = true;
+    $('#bookshelfLayer').show();
+};
+
+BookshelfController.prototype.slideinBookshelfLayer = function(){
+    this.bookshelfLayerIsShown = true;
+    $('#bookshelfLayer')
+        .animate({
+            'left': '0px'
+        },1000);
+    
+    this.getPresentationsTimer = setInterval(window.bookshelfcontroller.getPresentations, 5000);
+    
+    this.getPresentations();
+};
+
+BookshelfController.prototype.hideBookshelfLayer = function(){
+    $('.modal-backdrop').remove();
+        
+    this.bookshelfLayerIsShown = false;
+    $('#bookshelfLayer')
+        .animate({
+            'left': '-'+$('#bookshelfLayer').width()+'px'
+        },1000);
+        
+    clearInterval(this.getPresentationsTimer);
+};
+
+BookshelfController.prototype.setServerAndToken = function(server,token){
+    this.WWCServer = server;
+    this.WWCToken = token;
+};
+
+BookshelfController.prototype.getPresentations = function(){
+    this.connectionTimer = setTimeout(window.bookshelfcontroller.showModalForWWCServer,10000);
+    
+    window.mickrmanager.setApplicationAndGroup('',this.WWCToken);
+    window.mickrmanager.WWCServer = this.WWCServer;
+    window.mickrmanager.token = this.WWCToken;
+    
+    $.cookie("wwcserver", window.bookshelfcontroller.WWCServer, { expires: 100 });
+    $.cookie("token", window.bookshelfcontroller.WWCToken, { expires: 100 });
+    
+    var data = {
+        token: window.bookshelfcontroller.WWCToken
+    };
+    window.bookshelfcontroller.sendToWWCServer('/auth',data);
+};
+
+BookshelfController.prototype.createBookshelf = function(meetings){
+    console.log(meetings);
+    
+    if(typeof meetings == "undefined") return;
+    
+    $('#meetingNames')
+        .html('');
+    $('.meetingBookshelf')
+        .remove();
+        
+    $.each(meetings, function(index){
+        var meetingName = this.name;
+        var url = this.url;
+        
+        var $a = $('<a/>');
+        var $li = $('<li/>');
+        $a
+            .attr({
+                class: "meetingName",
+                href:"#meeting-"+index
+            })
+            .html(meetingName)
+            .appendTo($li);
+        
+        // wfe-pファイル以外を排除
+        if(meetingName.indexOf('.wfe-p')<0){
+            // $li
+                // .appendTo($('#meetingNames'));
+            return;
+        }else{
+            $li
+                .prependTo($('#meetingNames'));            
+        }
+                        
+        var $div = $('<div/>');
+        $div
+            .attr({
+                class:"meetingBookshelf",
+                id:"meeting-"+index
+            })
+            .appendTo($('#meetingTab'));
+        var $img = $('<img/>');
+        $img
+            .attr({
+                class: "bookshelfBackground",
+                src:"./img/bookshelf.png"
+            })
+            .css({
+                height:$div.height(),
+                width:$div.height()*(window.bookshelfcontroller.defaultBackgroundW/window.bookshelfcontroller.defaultBackgroundH)
+            })
+            .appendTo($div);
+        
+        window.bookshelfcontroller.backgroundLeft = $img.position().left;
+        window.bookshelfcontroller.backgroundTop = $img.position().top;
+        window.bookshelfcontroller.backgroundRatioW = $div.width()/window.bookshelfcontroller.defaultBackgroundW;
+        window.bookshelfcontroller.backgroundRatioH = $div.height()/window.bookshelfcontroller.defaultBackgroundH;
+        window.bookshelfcontroller.documentSize = window.bookshelfcontroller.documentDefaultSize*window.bookshelfcontroller.backgroundRatioH;
+        console.log($div.width());
+        console.log($div.height());
+       
+        $.each(this.docs,function(){
+            var pos = window.bookshelfcontroller.getDocumentPosition(this.pos);
+            
+            var $document = $('<div/>');
+            $document
+                .attr({
+                    class:"meetingDocument"
+                })
+                .css({
+                    left:pos.left,
+                    top:pos.top,
+                    width:window.bookshelfcontroller.documentSize,
+                    height:window.bookshelfcontroller.documentSize               
+                })
+                .appendTo($('#meeting-'+index));     
+            
+            
+            var documentName;
+            if(typeof this.name == "undefined"){
+                documentName = "Document" + this.pos;
+            }else{
+                documentName = this.name.replace('.wfe-p','');
+            }
+            var $documentTitle = $('<div/>');
+            $documentTitle
+                .attr({
+                    class:"meetingDocumentNumber"
+                })
+                .text(documentName)
+                .appendTo($document)
+                .fitText();                  
+                    
+            if(typeof this.thumburl != "undefined"){
+                var $loading = $('<img/>');
+                $loading
+                    .attr({
+                        class:"loadingDocumentIcon",
+                        src:window.bookshelfcontroller.loadingIconURL
+                    })
+                    .css({
+                        width:window.bookshelfcontroller.documentLoadingIconDefault*window.bookshelfcontroller.backgroundRatioH,
+                        height:window.bookshelfcontroller.documentLoadingIconDefault*window.bookshelfcontroller.backgroundRatioH
+                    })
+                    .appendTo($document); 
+                    
+                var $documentThumbnail = $('<img/>');
+                $documentThumbnail
+                    .attr({
+                        class:"documentThumbnail",
+                        // src:this.thumburl,
+                        src: window.bookshelfcontroller.documentIconURL,
+                        "data-url":this.url
+                    })
+                    .load(function(){
+                        $(this).parent().find('.loadingDocumentIcon').remove();
+                    })
+                    .on('click', function(event) {
+                        window.bookshelfcontroller.hideBookshelfLayer();
+                            
+                        window.bookshelfcontroller.setBaseURL($(this).attr('data-url'));
+                    })
+                    .appendTo($document);                  
+            }                         
+        });
+    });
+    $('#meetingTab').tabs();
+};
+
+BookshelfController.prototype.getDocumentPosition = function(pos){    
+    var horizontalIndex;
+    var vertivalIndex;
+    if(pos%this.documentRowNumber==0){
+        horizontalIndex = 4;
+        verticalIndex = Math.floor(pos/this.documentRowNumber)-1;
+    }else{
+        horizontalIndex = pos%this.documentRowNumber-1;
+        verticalIndex = Math.floor(pos/this.documentRowNumber);
+    };
+    
+    var documentSize = this.documentSize;
+    var backgroundPositionLeft = this.backgroundLeft;
+    var backgroundPositionTop = this.backgroundTop;
+    var gridInitLeft = this.documentGridInitLeft*this.backgroundRatioW;
+    var gridInitTop = this.documentGridInitTop*this.backgroundRatioH;
+    var marginHorizontal = this.documentMarginHorizontal*this.backgroundRatioW;
+    var marginVertical = this.documentMarginVertical*this.backgroundRatioH;
+    
+    var position = {
+        left:backgroundPositionLeft+gridInitLeft+(documentSize+marginHorizontal)*horizontalIndex+"px",
+        top:backgroundPositionTop+gridInitTop+(documentSize+marginVertical)*verticalIndex+"px"
+    };
+    
+    return position;
+};
+
+BookshelfController.prototype.sendToWWCServer = function(mode, data){            
+    // window.wfepcontroller.showLoadingLayer();
+    
+    $.ajax({
+        url: "http://"+window.bookshelfcontroller.WWCServer+"/wwc/api"+mode,
+        type: "GET",
+        crossDomain: true,
+        data: data
+    })
+    .then(
+        function(res){
+            console.log(res);
+        },
+        function(xhr, status, error) {
+            window.wfepcontroller.hideLoadingLayer();
+            clearTimeout(window.bookshelfcontroller.connectionTimer);
+                
+            var parsedRes = JSON.parse(xhr.responseText);
+            
+            console.log(parsedRes);
+            if(parsedRes.result == null){
+                // 通信失敗時の処理
+                window.bookshelfcontroller.showModalForWWCServer();                
+            }else{
+                setTimeout(function(){
+                    window.bookshelfcontroller.showBookshelfLayer();
+        
+                    window.bookshelfcontroller.createBookshelf(parsedRes.result.meetings);
+                },500);
+            }
+        }
+    );
+};
+
+// サーバエラーモーダル表示
+BookshelfController.prototype.showModalForWWCServer = function(){
+    window.wfepcontroller.hideLoadingLayer();
+    
+    // モーダルの再表示が上手くいかないので遅延を挟む
+    setTimeout(function(){
+        $('.modal-backdrop').remove();
+        while(true){
+            if(!this.unavailableModalIsOpen){
+                $('#wwcServerWindow')
+                    .modal();
+                    
+                break;            
+            }    
+        };
+    },500);
+};
+
+BookshelfController.prototype.setBaseURL = function(fileURL){
+    $.ajax({
+        url: fileURL,
+        type: "GET"
+    })
+    .then(
+        function(res){
+            console.log(res);
+            var parsedRes = JSON.parse(res);
+            
+            window.wfepcontroller.baseURL = parsedRes.url;
+            window.bookshelfcontroller.setSlideURLs(parsedRes.slideCount);
+        },
+        function(xhr, status, error) {
+            console.log(xhr);
+            window.wfepcontroller.baseURL = "default";
+        }
+    );
+};
+
+BookshelfController.prototype.setSlideURLs = function(slideNum){
+    window.wfepcontroller.slideURLs.length = 0;
+    
+    for(var i=0;i<slideNum;i++){
+        var slideIndex = i+1;
+        var slideData = {
+            index: slideIndex,
+            click: "",
+            url: window.wfepcontroller.baseURL+slideIndex
+        };
+        window.wfepcontroller.slideURLs[i] = slideData;
+    }
+    
+    // キャッシュ生成
+    this.makeDocumentCache(window.wfepcontroller.slideURLs);
+    
+    // 手書きメモの箱を生成
+    window.drawcanvas.setDrawings(window.wfepcontroller.slideURLs);
+    
+    window.wfepcontroller.updateSlider();
+    window.wfepcontroller.jumpSlide2(1,0);
+};
+
+// 背景の本棚画像のキャッシュ作成
+BookshelfController.prototype.makeBackgroundCache = function(){
+    var img = new Image;
+    img.src = this.backgroundURL;
+};
+
+// 文書のキャッシュ生成
+BookshelfController.prototype.makeDocumentCache = function(slideURLs){
+    window.wfepcontroller.showLoadingLayer();
+    
+    this.makeDocumentCacheCounter = 0;
+    this.makeDocumentCacheNum = slideURLs.length;
+    clearInterval(window.bookshelfcontroller.makeDocumentCacheTimer);
+    
+    $.each(slideURLs, function(){
+        var targetURL = this.url;
+        var $img = $('<img/>');
+        $img
+            .attr({
+                src:targetURL
+            })
+            .load(function(){
+                window.bookshelfcontroller.makeDocumentCacheCounter++;
+            });
+    });
+    
+    this.makeDocumentCacheTimer = setInterval(function(){
+        if(window.bookshelfcontroller.makeDocumentCacheCounter == window.bookshelfcontroller.makeDocumentCacheNum){
+            window.bookshelfcontroller.makeDocumentCacheLimit=0;
+            
+            window.wfepcontroller.hideLoadingLayer();
+            
+            clearInterval(window.bookshelfcontroller.makeDocumentCacheTimer);
+            
+            return;
+        }else if(window.bookshelfcontroller.makeDocumentCacheLimit>=10 && window.bookshelfcontroller.makeDocumentCacheCounter==0){
+            window.bookshelfcontroller.makeDocumentCacheLimit=0;
+            
+            window.wfepcontroller.hideLoadingLayer();
+            
+            clearInterval(window.bookshelfcontroller.makeDocumentCacheTimer);
+            
+            window.bookshelfcontroller.slideinBookshelfLayer();
+            
+            return;
+        }
+        window.bookshelfcontroller.makeDocumentCacheLimit++;
+    },1000);
 };
 
 // サムネイルビューア関係
@@ -1295,7 +2015,12 @@ ThumbnailController.prototype.makeThumbnailCache = function(){
     this.thumbnailCacheURLs.length = 0;
     
     $.each(window.wfepcontroller.slideURLs,function(index){
-        var imgsrc = this;
+        var imgsrc;
+        if(typeof this.url == "undefined"){
+            imgsrc = this;
+        }else{
+            imgsrc = this.url;
+        }
         
         if(window.thumbnailcontroller.thumbnailCacheURLs[index] != imgsrc){
             window.thumbnailcontroller.thumbnailCacheURLs[index] = imgsrc;
@@ -1312,14 +2037,27 @@ ThumbnailController.prototype.showSlideThumbnails = function(){
     this.makeThumbnailCache();
     
     $('#thumbnailLayer').html('');
-    $.each(window.wfepcontroller.slideURLs,function(index){
-        var imgsrc = this;
+    $.each(window.wfepcontroller.slideURLs,function(i){
+        var imgsrc;
+        if(typeof this.url == "undefined"){
+            imgsrc = this;
+        }else{
+            imgsrc = this.url;
+        }
+        
+        var index;
+        if(typeof this.index == "undefined"){
+            index = i;
+        }else{
+            index = this.index;
+        }
+                
         var $img = $('<img/>');
         $img
             .attr({
                 'class':"slideThumbnail",
                 'src':imgsrc,
-                'data-slideIndex':index+1
+                'data-slideIndex':index
             })
             .appendTo('#thumbnailLayer');
     });
@@ -1329,7 +2067,8 @@ ThumbnailController.prototype.showSlideThumbnails = function(){
     $('.slideThumbnail')
         .on('click',function(e, ui){
             window.thumbnailcontroller.hideSlideThumbnails();
-            window.wfepcontroller.jumpSlide($(e.target).attr('data-slideIndex'));                
+            // window.wfepcontroller.jumpSlide($(e.target).attr('data-slideIndex')); 
+            window.wfepcontroller.jumpSlide2($(e.target).attr('data-slideIndex'), 0);                 
         });
     
     // サムネイル間のマージンを表示幅に合わせて動的に計算
@@ -1414,7 +2153,7 @@ CommentController.prototype.clearComment = function(){
 };
 
 // 手描き関連
-function DrawCanvas(){
+function DrawCanvas(){    
     // キャンバス
     this.e_canvas;
 
@@ -1432,6 +2171,10 @@ function DrawCanvas(){
     };
 
     // 手描きの配列
+    // drawings = {
+    //     url: (スライドのURL),
+    //     handwriteurl: (手書きメモの画像のURL)    
+    // }
     this.drawings = new Array();
 };
 
@@ -1446,40 +2189,47 @@ DrawCanvas.prototype.init = function(){
     this.e_canvas = new EasyCanvas($('#realtimeCanvas'));
 
     this.e_canvas.onDrawEnd = function(canvas){
-        // Mickrサーバに画像アップロード
-        var url = "http://apps.wisdomweb.net:19282/";
-        var file_data = window.drawcanvas.getBlob(this.getPngDataURL());
-        var fd = new FormData();
-        fd.append("file", file_data);
-
-        $.ajax({
-            url: url,
-            type: "POST",
-            data: fd,
-            success: function(url) {
-                // 成功時
-                console.log(url); // ファイルの URL
-
-                var msg = {
-                    type: "handwrite",
-                    cslide: window.wfepcontroller.cslide,
-                    from: window.mickrmanager.name,
-                    imgurl:url
-                };
-                window.mickrmanager.sendMickr(msg);
-            },
-            error: function() {
-                // エラー処理
-            },
-            processData: false,  // jQuery がデータを処理しないよう指定
-            contentType: false   // jQuery が contentType を設定しないよう指定
-        });
+        window.drawcanvas.uploadHandwriteImage();
     };
 
     $('#drawButton')
         .on('click',function(){
             window.drawcanvas.toggleDrawMenu();
         });
+};
+
+DrawCanvas.prototype.uploadHandwriteImage = function(){
+    // Mickrサーバに画像アップロード
+    var file_data = window.drawcanvas.getBlob(window.drawcanvas.e_canvas.getPngDataURL());
+    var fd = new FormData();
+    fd.append("file", file_data);
+
+    $.ajax({
+        url: window.mickrmanager.uploadImageServerURL,
+        type: "POST",
+        data: fd,
+        success: function(url) {
+            // 成功時
+            console.log(url); // ファイルの URL
+
+            var listIndex = window.wfepcontroller.getListIndex(window.wfepcontroller.cslide, 0);
+            var targetURL = window.wfepcontroller.slideURLs[listIndex].url;
+
+            var msg = {
+                type: "handwrite",
+                cslide: window.wfepcontroller.cslide,
+                from: window.mickrmanager.name,
+                imgurl:url,
+                targeturl:targetURL
+            };
+            window.mickrmanager.sendMickr(msg);
+        },
+        error: function() {
+            // エラー処理
+        },
+        processData: false,  // jQuery がデータを処理しないよう指定
+        contentType: false   // jQuery が contentType を設定しないよう指定
+    });  
 };
 
 DrawCanvas.prototype.toggleDrawMenu = function(){
@@ -1547,6 +2297,14 @@ DrawCanvas.prototype.toggleDrawMenu = function(){
     this.toggleFlag = !this.toggleFlag;
 };
 
+DrawCanvas.prototype.hideDrawMenu = function(){
+    if(!this.toggleFlag){
+        $('#drawButton')
+            .hideBalloon();
+        this.toggleFlag = true;         
+    }   
+};
+
 DrawCanvas.prototype.activeDrawMode = function(mode){
     switch (mode) {
         case EasyCanvasDrawMode.FreeHand:
@@ -1586,15 +2344,32 @@ DrawCanvas.prototype.activeDrawMode = function(mode){
     this.toggleDrawMenu();
 };
 
-DrawCanvas.prototype.saveDrawing = function(index){
-    this.drawings[index] = this.e_canvas.getPngDataURL();
-    this.e_canvas.clearDrawing();
+DrawCanvas.prototype.setDrawings = function(slideURLs){
+    $.each(slideURLs, function(index) {
+        window.drawcanvas.drawings[index] = new Object;
+        window.drawcanvas.drawings[index].url = this.url;
+        window.drawcanvas.drawings[index].handwriteurl = "";
+    });
 };
 
-DrawCanvas.prototype.loadDrawing = function(index){
-    if(typeof this.drawings[index] != "undefined"){
-        this.e_canvas.setDataURL(this.drawings[index]);
-    }
+DrawCanvas.prototype.saveDrawing = function(targetURL, handwriteurl){
+    var drawings = this.drawings;
+    
+    $.each(drawings, function(index) {
+        if(this.url == targetURL){
+            this.handwriteurl = handwriteurl;
+        }
+    });
+};
+
+DrawCanvas.prototype.loadDrawing = function(targetURL){
+    var drawings = this.drawings;
+    
+    $.each(drawings, function(index) {
+        if(this.url == targetURL){
+            window.drawcanvas.e_canvas.setDataURL(this.handwriteurl);
+        }
+    });
 };
 
 DrawCanvas.prototype.syncDrawing = function(url, cslide){    
@@ -1603,6 +2378,14 @@ DrawCanvas.prototype.syncDrawing = function(url, cslide){
     }else{
         window.drawcanvas.drawings[cslide-1] = url;
     }
+};
+
+DrawCanvas.prototype.clearDrawing = function(){
+    this.e_canvas.clearDrawing();
+};
+
+DrawCanvas.prototype.fitCanvas = function(){
+    this.e_canvas.fitCanvas();  
 };
 
 DrawCanvas.prototype.getBlob = function(base64Image) {
@@ -1917,10 +2700,17 @@ ComController.prototype.settingRoomList = function(){
         .html('<li class="room" data-index="0">all</li>');
     
     $.each(window.wfepcontroller.slideURLs, function(index){
+        var imgsrc;
+        if(typeof this.url == "undefinded"){
+            imgsrc = this;
+        }else{
+            imgsrc = this.url;
+        }
+        
         var $li = $('<li/>');
         var $img = $('<img/>');
         $img
-            .attr('src',this)
+            .attr('src',imgsrc)
             .css({
                 width:"70px",
                 height:"auto"
@@ -2351,13 +3141,24 @@ function MickrManager(){
     //評価用
     //this.token = "demo";
 
-    this.token = "default";
+    this.token = "toralab";
+    
+    this.WWCServer = "";
+    this.mickrServer = "";
     
     // モーダルが表示されているかどうか
     this.duplicateModalIsOpen = false;
+    
+    // 画像アップロードサーバ
+    this.uploadImageServerURL = "http://apps.wisdomweb.net:19282/";
 };
 
 MickrManager.prototype.init = function(){
+    this.WWCServer = $.cookie("wwcserver");
+    this.mickrServer = $.cookie("mickrserver");
+    this.token = $.cookie("token");
+    this.name = $.cookie("name");
+    
     $('#tokenWindow')
         .modal()
         .on('shown',function(){
@@ -2370,6 +3171,8 @@ MickrManager.prototype.init = function(){
 
     $('#tokenSubmit')
         .on('click',function(){
+            window.wfepcontroller.toggleFullScreen($('body'));
+            
             if($('#nameInput').val() == ""){
                 $('#tokenMessage').html("Name is requred.");
                 $('#nameInput').focus();
@@ -2378,7 +3181,6 @@ MickrManager.prototype.init = function(){
                 window.mickrmanager.name = $('#nameInput').val();
             }
             
-            // デモ用にトークン入力省略
             if($('#tokenInput').val() == ""){
                 $('#tokenMessage').html("Token is requred.");
                 $('#tokenInput').focus();
@@ -2386,7 +3188,26 @@ MickrManager.prototype.init = function(){
             }else{
                 window.mickrmanager.token = $('#tokenInput').val();
             }
-
+            
+            if($('#wwcServerInput').val() == ""){
+                $('#tokenMessage').html("WWC Server URL is requred.");
+                $('#wwcServerInput').focus();
+                return;
+            }else{
+                window.mickrmanager.WWCServer = $('#wwcServerInput').val();
+            }
+            
+            if($('#mickrServerInput').val() == ""){
+                $('#tokenMessage').html("Mickr Server URL is requred.");
+                $('#mickrServerInput').focus();
+                return;
+            }else{
+                window.mickrmanager.mickrServer = $('#mickrServerInput').val();
+            }
+            
+            window.bookshelfcontroller.setServerAndToken(window.mickrmanager.WWCServer,window.mickrmanager.token);
+            window.bookshelfcontroller.getPresentations();
+            
             $('#tokenWindow')
                 .modal('hide');
 
@@ -2394,6 +3215,7 @@ MickrManager.prototype.init = function(){
         });
 
     $('#nameInput')
+        .val(window.mickrmanager.name)
         .keypress( function ( e ) {
             if ( e.which == 13 ) {
                     $('#tokenSubmit').trigger('click');
@@ -2406,6 +3228,33 @@ MickrManager.prototype.init = function(){
         });
 
     $('#tokenInput')
+        .val(window.mickrmanager.token)
+        .keypress( function ( e ) {
+            if ( e.which == 13 ) {
+                    $('#tokenSubmit').trigger('click');
+                return false;
+            }
+        } )
+        .focus(function() {
+            $(this).select();
+            return false;    
+        });
+        
+    $('#wwcServerInput')
+        .val(window.mickrmanager.WWCServer)
+        .keypress( function ( e ) {
+            if ( e.which == 13 ) {
+                    $('#tokenSubmit').trigger('click');
+                return false;
+            }
+        } )
+        .focus(function() {
+            $(this).select();
+            return false;    
+        });
+        
+    $('#mickrServerInput')
+        .val(window.mickrmanager.mickrServer)
         .keypress( function ( e ) {
             if ( e.which == 13 ) {
                     $('#tokenSubmit').trigger('click');
@@ -2477,6 +3326,11 @@ MickrManager.prototype.init = function(){
         });
 };
 
+MickrManager.prototype.setApplicationAndGroup = function(application, group){
+    MWClient.application = "wfep3"; // アプリケーション名
+    MWClient.group = group; // クライアントのグループ名    
+};
+
 MickrManager.prototype.clientInit = function(){
     // optional
     MWClient.application = "wfep3"; // アプリケーション名
@@ -2489,6 +3343,10 @@ MickrManager.prototype.clientInit = function(){
     // メッセージを受け取った時のリスナ
     MWClient.onHello = function(res) {
         // Hello が完了した後に実行される
+
+        // キャッシュ
+        $.cookie("mickrserver", window.mickrmanager.mickrServer, { expires: 100 });
+        $.cookie("name", window.mickrmanager.name, { expires: 100 });
 
         // 接続したことを他のクライアントに通知，接続中のクライアントの情報を収集
         var msg = {
@@ -2539,6 +3397,9 @@ MickrManager.prototype.clientInit = function(){
 
             return;
         }
+        
+        // ファイルURLでセッション識別
+        if(window.wfepcontroller.baseURL != msg.session) return;
 
         switch(msg.type){
             /* プレゼン画像取得 */
@@ -2619,7 +3480,7 @@ MickrManager.prototype.clientInit = function(){
                 break;
             case "ssnext":
                 // 同期オフのときは無視
-                if(window.wfepcontroller.syncState){
+                if(window.wfepcontroller.userState == "audience"){
                     window.wfepcontroller.jumpSlide(msg.cslide);
                 }
 
@@ -2670,8 +3531,12 @@ MickrManager.prototype.clientInit = function(){
             
             /* 手書きメモ */
             case "handwrite":
-                window.drawcanvas.syncDrawing(msg.imgurl,msg.cslide);
-
+                window.drawcanvas.saveDrawing(msg.targeturl, msg.imgurl);
+                
+                if(window.wfepcontroller.cslide == msg.cslide){
+                    window.drawcanvas.loadDrawing(msg.targeturl);
+                };
+                
                 break;
                 
             /* 投票 */    
@@ -2729,31 +3594,19 @@ MickrManager.prototype.clientInit = function(){
                 break;
                 
             // 以下WFE-P3
-            case "show":
+            case "show":  
+                if(window.wfepcontroller.baseURL!=msg.baseurl) break;
+                          
+                window.wfepcontroller.updateList(msg.index, msg.click, msg.url);
+                    
                 // 同期オフのときは無視
-                if(window.wfepcontroller.syncState){
-                    if(msg.file!=window.wfepcontroller.fileName){
-                        window.wfepcontroller.fileName = msg.file;
-                        window.wfepcontroller.slideURLs.length = 0;
-                    }
-                    
-                    // スライダー設定
-                    $('#pageSlider')
-                        .slider({
-                            range:"min",
-                            min: 1,
-                            max: window.wfepcontroller.slideURLs.length,
-                            step: 1,
-                            slide: function(e, ui) {
-                                var index = window.wfepcontroller.slideURLs[ui.value].index;
-                                var click = window.wfepcontroller.slideURLs[ui.value].click;
-                                
-                                window.wfepcontroller.jumpSlide2(index, click);
-                            }
-                        });
-                    
-                    window.wfepcontroller.updateList(msg.slide,msg.click,msg.url);
-                    window.wfepcontroller.jumpSlide2(msg.slide, msg.click);
+                // 発表者モード，フリーモードの時は無視
+                if(window.wfepcontroller.syncState && window.wfepcontroller.userState == "audience"){
+                    // if(msg.file!=window.wfepcontroller.fileName){
+                        // window.wfepcontroller.fileName = msg.file;
+                        // window.wfepcontroller.slideURLs.length = 0;
+                    // }
+                    window.wfepcontroller.jumpSlide2(msg.index, msg.click);
                 }
                 
                 break;
@@ -2773,11 +3626,13 @@ MickrManager.prototype.clientInit = function(){
 MickrManager.prototype.sendMickr = function(msg){
     msg.from = this.name;
 
+    msg.session = window.wfepcontroller.baseURL;
+
     // 評価実験時には時間を記録
     if(window.doevaluation.evaluationMode){
         var date = new Date();
         msg.starttime = date.getTime();
-        msg.evaluationtoken = window.doevaluation.evaluationToken;
+        msg.presentationtoken = window.doevaluation.evaluationToken;
     }else if(window.doevaluation.getDataMode){
         window.doevaluation.getData(msg);
     }
@@ -2809,21 +3664,21 @@ function DemoSlide(){};
 DemoSlide.prototype.init = function(){
     // デモ用
     
-    for(i=1;i<=5;i++){
-        window.wfepcontroller.slideURLs.push("./img/test/0"+i+".jpg");
-    };
-    window.wfepcontroller.jumpSlide(1);
+    // for(i=1;i<=5;i++){
+        // window.wfepcontroller.slideURLs.push("./img/test/0"+i+".jpg");
+    // };
+    // window.wfepcontroller.jumpSlide(1);
     
     // WFE-P3
-    //for(i=1;i<=5;i++){
-    //    var obj = {
-    //        index: i,
-    //        click: 0,
-    //        url: "./img/test/0"+i+".jpg"
-    //    };
-    //    window.wfepcontroller.slideURLs.push(obj);
-    //};
-    //window.wfepcontroller.jumpSlide2(1,0);
+    for(i=1;i<=5;i++){
+       var obj = {
+           index: i,
+           click: 0,
+           url: "./img/test/0"+i+".jpg"
+       };
+       window.wfepcontroller.slideURLs.push(obj);
+    };
+    window.wfepcontroller.jumpSlide2(1,0);
     
     // スライダー
     $('#pageSlider')
@@ -2858,7 +3713,7 @@ DoEvaluation.prototype.init = function(){
 
 // テストケース構築のための操作データの収集
 DoEvaluation.prototype.getData = function(msg){
-    msg.evaluationtoken = window.doevaluation.evaluationToken;
+    msg.presentationtoken = window.doevaluation.evaluationToken;
     msg.userid = window.wfepcontroller.userID;
     msg.name = window.mickrmanager.name;
     
@@ -2879,13 +3734,14 @@ DoEvaluation.prototype.getEvaluationToken = function(){
 DoEvaluation.prototype.setEvaluationToken = function(msg){
     // this. testCaseMode();
     
-    this.evaluationToken = msg.evaluationtoken;
+    this.evaluationToken = msg.presentationtoken;
     
     console.log("evaluationToken: "+this.evaluationToken);
     
     var data = {
         "evaluationtoken":this.evaluationToken,
-        "title":"no data"
+        "title":"no data",
+        "page":window.wfepcontroller.slideURLs.length
     };
     var successHandler = function(){};
     this.sendEvaluationServer("/saveevaluationdata",data,successHandler);
@@ -2947,6 +3803,9 @@ $(function() {
     window.wfepcontroller = new WFEPController;
     window.wfepcontroller.init();
 
+    window.bookshelfcontroller = new BookshelfController;
+    window.bookshelfcontroller.init();
+    
     window.thumbnailcontroller = new ThumbnailController;
     window.thumbnailcontroller.init();
 
@@ -2965,6 +3824,6 @@ $(function() {
     window.doevaluation = new DoEvaluation;
     window.doevaluation.init();
 
-    //window.demoslide = new DemoSlide;
-    //window.demoslide.init();
+    // window.demoslide = new DemoSlide;
+    // window.demoslide.init();
 });

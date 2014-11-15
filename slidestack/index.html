@@ -8,7 +8,7 @@
     <!--拡大防止-->
     <meta name="viewport" content="user-scalable=no">
 
-    <title>WFE-P Visualizer</title>
+    <title>SlideStack</title>
     
     <base href="http://winter.ics.nitech.ac.jp/~toralab/demo/" >
     
@@ -25,7 +25,7 @@
     <link rel="stylesheet" href="lib/ui/development-bundle/themes/base/jquery.ui.all.css" type="text/css">
     <!--EasyCanvas-->
     <link rel="stylesheet" href="lib/EasyCanvas/css/EasyCanvas.css" type="text/css">
-    <link href="http://133.68.14.167:3333/evaluation.css" rel="stylesheet" >
+    <link href="./slidestack.css" rel="stylesheet" >
 
     <script src="lib/jquery-2.0.3.min.js"></script>
     <script src="lib/spectrum/spectrum.js"></script>
@@ -50,49 +50,41 @@
     <script src="lib/balloonjs/jquery.balloon.min.js"></script>
     <!--<script src="../lib/contextMenu.js"></script>-->
     
-    <script src="http://133.68.14.167:3333/evaluation.js"></script>
+    <script src="./slidestack.js"></script>
 </head>
 <body>
  
 
-<div id="bottomBar" class="navbar navbar-fixed-top">
+<div id="topBar" class="navbar navbar-fixed-top">
     <div class="navbar-inner">
-        <div class="navbar-brand">WFE-P Visualizer</div>
+        <div class="navbar-brand">SlideStack</div>
     </div>
 </div>
  
-<div id="indexLayer" class="layers">
+<div id="top">
     <div class="container-fluid">
         <div class="row-fluid">
-            <table id="evaluationList" class="table table-striped span5">
-                <thead>
-                    <tr>
-                        <td>Index</td>
-                        <td>ID</td>
-                        <td>Title</td>
-                        <td>Date</td>
-                    </tr>
-                </thead>
-            </table>
+            <textarea id="searchInput"></textarea>
         </div>
-    </div> 
+
+        <div class="row-fluid">
+
+        </div>
+    </div>
 </div>
-    
-<div id="resultLayer">
+
+<div id="presentationPage">
     <div class="container-fluid">
         <div class="row-fluid">
-            <div class="pageData">
-                <div class="page-header myPageHeader">all</div>
-                <canvas id="chartForFunctions"></canvas>
-                <canvas id="chartForUsers"></canvas>  
-                <canvas id="chartForEachPage"></canvas>            
-            </div>
+            <div class="span8"></div>
+            <div class="span4"></div>
         </div>
-        
-        <div id="slideComments" class="row-fluid">
-            
+
+        <div class="row-fluid">
+            <div class="span8"></div>
+            <div class="span4"></div>
         </div>
-    </div> 
+    </div>
 </div>
 
 </body>

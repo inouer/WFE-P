@@ -2,16 +2,18 @@ function ShowResult(){
     this.dataServerURL = "http://133.68.14.167:3333"; // inouerのiMac
     
     this.selectedID = "";
+    
+    this.chartWidth = 600;
+    this.chartHeight = 400;
 };
 
 ShowResult.prototype.init = function(){
     this.getEvaluationList();
     
-    // Load the Visualization API and the piechart package.
-    //google.load('visualization', '1.0', {'packages':['corechart']});
-    
-    // Set a callback to run when the Google Visualization API is loaded.
-    //google.setOnLoadCallback(this.showCharts);
+    $('#resultLayer')
+        .on('click',function(){
+            window.showresult.hideResultLayer();
+        });
 };
 
 ShowResult.prototype.getEvaluationList = function(){
@@ -21,7 +23,7 @@ ShowResult.prototype.getEvaluationList = function(){
 };
 
 ShowResult.prototype.callbackForGetEvaluationList = function(res){
-    console.log("Evaluations: "+res);
+    console.log(res);
     
     $.each(res, function(index){
         var $evaluationList = $('#evaluationList');
@@ -29,6 +31,7 @@ ShowResult.prototype.callbackForGetEvaluationList = function(res){
         var $tr = $('<tr/>');
         var $indexTD = $('<td/>');
         var $tokenTD = $('<td/>');
+        var $titleTD = $('<td/>');
         var $dateTD = $('<td/>');
         
         $indexTD
@@ -37,24 +40,40 @@ ShowResult.prototype.callbackForGetEvaluationList = function(res){
             .appendTo($tr);
         $tokenTD
             .addClass('tokenTD')
-            .text(this)
+            .text(this.evaluationtoken)
+            .appendTo($tr);
+        $titleTD
+            .addClass('titleTD')
+            .text(this.title)
             .appendTo($tr);
         $dateTD
             .addClass('dateTD')
-            .text("")
+            .text(this.date)
             .appendTo($tr);
         
         $tr
             .attr({
                 'class':'evaluationIDs',
-                'data-rowid':this
+                'data-rowid':this.evaluationtoken
             })
             .on('click',function(){
+                window.showresult.showResultLayer();
+                
                 window.showresult.selectedID = $(this).attr('data-rowid');
                 window.showresult.getEvaluationData(window.showresult.selectedID);    
             })
             .appendTo($evaluationList);
     });
+};
+
+ShowResult.prototype.showResultLayer = function(){
+    $('#resultLayer')
+        .fadeIn('slow');    
+};
+
+ShowResult.prototype.hideResultLayer = function(){
+    $('#resultLayer')
+        .fadeOut('fast');    
 };
 
 ShowResult.prototype.getEvaluationData = function(selectedID){
@@ -68,6 +87,8 @@ ShowResult.prototype.getEvaluationData = function(selectedID){
 ShowResult.prototype.callbackForGetEvaluationData = function(res){
     this.drawFunctionsChart(res.functioncount);
     this.drawUsersChart(res.usercount);
+    this.drawEachPageChart(res.pages);
+    this.drawPagesData(res.pages);
 };
 
 ShowResult.prototype.drawFunctionsChart = function(functionCount){
@@ -89,6 +110,8 @@ ShowResult.prototype.drawFunctionsChart = function(functionCount){
     var chartdata = {
     
       "config": {
+          "width": window.showresult.chartWidth,
+          "height": window.showresult.chartHeight,
         "title": "Functions",
         //"subTitle": "",
         "type": "pie",
@@ -126,8 +149,9 @@ ShowResult.prototype.drawUsersChart = function(userCount){
     var chartdata = {
     
       "config": {
+          "width": window.showresult.chartWidth,
+          "height": window.showresult.chartHeight,
         "title": "Users",
-        //"subTitle": "",
         "type": "pie",
         "useVal": "yes",
         "pieDataIndex": 2,
@@ -142,6 +166,182 @@ ShowResult.prototype.drawUsersChart = function(userCount){
     };
     
     window.ccchart.init('chartForUsers', chartdata);
+};
+
+ShowResult.prototype.drawEachPageChart = function(pages){
+    var data = [];
+    var pageNumber = ['PageNumber'];
+    var functionAll = ['all'];
+    var functionCmt = ['cmt'];
+    var functionAnnotation = ['annotation'];
+    var functionPointer = ['pointer'];
+    var functionHandwrite = ['handwrite'];
+    $.each(pages, function(k, v) {
+        if(k=="undefined") return;
+        
+        pageNumber.push(k);
+        
+        $.each(this.count, function(k, v) {
+           switch(k){
+               case 'all':
+                   functionAll.push(v);
+                   break;
+               case 'cmt':
+                   functionCmt.push(v);
+                   break;
+               case 'annotation':
+                   functionAnnotation.push(v);
+                   break;
+               case 'pointer':
+                   functionPointer.push(v);
+                   break;
+               case 'handwrite':
+                   functionHandwrite.push(v);
+                   break;
+           } 
+        });
+    });
+    data.push(pageNumber);
+    data.push(functionCmt);
+    data.push(functionAnnotation);
+    data.push(functionPointer);
+    data.push(functionHandwrite);
+    data.push(functionAll);
+    
+    var chartdata = {
+    
+      "config": {
+          "width": window.showresult.chartWidth,
+          "height": window.showresult.chartHeight,
+        "title": "Used Functions on Each Page",
+        "type": "bezi2",
+        "useVal": "yes",
+        "xScaleXOffset": 4,
+        "colNameFont": "100 18px 'Arial'",
+        "textColor": "#888",
+        "bg": "#fff"
+      },
+    
+      "data": data
+    };
+    
+    window.ccchart.init('chartForEachPage', chartdata);
+};
+
+ShowResult.prototype.drawPagesData = function(pages){
+    console.log(pages);
+    
+    $('#slideComments').html('');
+    
+    $.each(pages, function(index) {   
+        if(index == "undefined") return true;
+        
+        var $div = $('<div/>');
+        $div
+            .addClass('pageData')
+            .appendTo($('#slideComments'));
+            
+        var $header = $('<div/>');
+        $header
+            .addClass('page-header myPageHeader')
+            .text('Slide ' + index)
+            .appendTo($div); 
+             
+        var $countHeader = $('<div>Functions</div>');
+        $countHeader
+            .addClass('myMiniHeader')
+            .appendTo($div); 
+        
+        var $canvas = $('<canvas/>');
+        $canvas
+            .attr({
+                id:'#countCanvas'+index
+            })
+            .appendTo($div); 
+            
+        var data = [];
+        $.each(this.count, function(k, v) {
+            if(k=="all") return;
+            var eachData = [k, v];
+            data.push(eachData);
+        });
+        data.unshift(["",""]);
+        
+        var chartdata = {
+        
+          "config": {
+              "width": window.showresult.chartWidth,
+              "height": window.showresult.chartHeight,
+            "type": "pie",
+            "useVal": "yes",
+            "pieDataIndex": 2,
+            "colNameFont": "100 18px 'Arial'",
+            "pieRingWidth": 80,
+            "pieHoleRadius": 40,
+            "textColor": "#888",
+            "bg": "#fff"
+          },
+        
+          "data": data
+        };
+        window.ccchart.init('#countCanvas'+index, chartdata);
+        
+        var $annotationHeader = $('<div>Annotations</div>');
+        $annotationHeader
+            .addClass('myMiniHeader')
+            .appendTo($div); 
+        var $ulAnnotation = $('<ul/>');        
+        $.each(this.annotations, function(index) {
+            var $li = $('<li/>');
+            $li
+                .text(this)
+                .appendTo($ulAnnotation);
+        });
+        $ulAnnotation
+            .appendTo($div); 
+        
+        var $commentHeader = $('<div>Comments</div>');
+        $commentHeader
+            .addClass('myMiniHeader')
+            .appendTo($div); 
+        var $ulComment = $('<ul/>');        
+        $.each(this.comments, function(index) {
+            var $li = $('<li/>');
+            $li
+                .text(this)
+                .appendTo($ulComment);
+        });
+        $ulComment
+            .appendTo($div); 
+        
+        var $handwriteHeader = $('<div>Handwrite</div>');
+        $handwriteHeader
+            .addClass('myMiniHeader')
+            .appendTo($div); 
+        var $ulHandwrite = $('<ul/>');        
+        $.each(this.handwrite, function(index) {
+            var $li = $('<li/>');
+            $li
+                .text(this)
+                .appendTo($ulHandwrite);
+        });
+        $ulHandwrite
+            .appendTo($div); 
+        
+        var $pointerHeader = $('<div>Pointer</div>');
+        $pointerHeader
+            .addClass('myMiniHeader')
+            .appendTo($div); 
+        var $ulPointer = $('<ul/>');        
+        $.each(this.pointer, function(index) {
+            var $li = $('<li/>');
+            $li
+                .text(this)
+                .appendTo($ulPointer);
+        });
+        $ulPointer
+            .appendTo($div); 
+    });
 };
 
 ShowResult.prototype.getData = function(mode, data, successHandler){
